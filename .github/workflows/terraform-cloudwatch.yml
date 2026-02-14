@@ -1,0 +1,142 @@
+name: Terraform CloudWatch Deployment
+
+on:
+  workflow_dispatch:
+    inputs:
+      alarm_name:
+        description: 'Nom de l alarme'
+        required: true
+        type: string
+      alarm_description:
+        description: 'Description'
+        required: false
+        type: string
+      metric_name:
+        description: 'Métrique'
+        required: true
+        type: choice
+        options:
+          - CPUUtilization
+          - NetworkIn
+          - NetworkOut
+          - DiskReadBytes
+          - StatusCheckFailed
+      namespace:
+        description: 'Namespace AWS'
+        required: true
+        type: choice
+        options:
+          - AWS/EC2
+          - AWS/RDS
+          - AWS/Lambda
+          - AWS/ELB
+      threshold:
+        description: 'Seuil d alerte'
+        required: true
+        type: number
+      comparison_operator:
+        description: 'Opérateur'
+        required: true
+        type: choice
+        options:
+          - GreaterThanThreshold
+          - LessThanThreshold
+          - GreaterThanOrEqualToThreshold
+          - LessThanOrEqualToThreshold
+        default: 'GreaterThanThreshold'
+      evaluation_periods:
+        description: 'Périodes d évaluation'
+        required: true
+        type: number
+        default: 2
+      period:
+        description: 'Période (secondes)'
+        required: true
+        type: choice
+        options:
+          - "60"
+          - "300"
+          - "900"
+          - "3600"
+        default: "300"
+      statistic:
+        description: 'Statistique'
+        required: true
+        type: choice
+        options:
+          - Average
+          - Sum
+          - Maximum
+          - Minimum
+        default: 'Average'
+      sns_topic_arn:
+        description: 'ARN du topic SNS (optionnel)'
+        required: false
+        type: string
+
+env:
+  AWS_REGION: 'eu-west-3'
+  TF_VERSION: '1.6.0'
+
+jobs:
+  terraform:
+    name: Deploy CloudWatch Alarm
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./infra/cloudwatch
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Terraform Init
+        run: terraform init
+
+      - name: Terraform Validate
+        run: terraform validate
+
+      - name: Terraform Plan
+        run: |
+          terraform plan \
+            -var="alarm_name=${{ github.event.inputs.alarm_name }}" \
+            -var="alarm_description=${{ github.event.inputs.alarm_description }}" \
+            -var="metric_name=${{ github.event.inputs.metric_name }}" \
+            -var="namespace=${{ github.event.inputs.namespace }}" \
+            -var="threshold=${{ github.event.inputs.threshold }}" \
+            -var="comparison_operator=${{ github.event.inputs.comparison_operator }}" \
+            -var="evaluation_periods=${{ github.event.inputs.evaluation_periods }}" \
+            -var="period=${{ github.event.inputs.period }}" \
+            -var="statistic=${{ github.event.inputs.statistic }}" \
+            -var="sns_topic_arn=${{ github.event.inputs.sns_topic_arn }}" \
+            -out=tfplan
+
+      - name: Terraform Apply
+        run: terraform apply -auto-approve tfplan
+
+      - name: Get Outputs
+        id: outputs
+        run: |
+          echo "alarm_arn=$(terraform output -raw alarm_arn)" >> $GITHUB_OUTPUT
+          echo "alarm_name=$(terraform output -raw alarm_name)" >> $GITHUB_OUTPUT
+
+      - name: Display Results
+        run: |
+          echo "✅ Alarme CloudWatch créée avec succès!"
+          echo ""
+          echo "Nom: ${{ steps.outputs.outputs.alarm_name }}"
+          echo "ARN: ${{ steps.outputs.outputs.alarm_arn }}"
+          echo "Métrique: ${{ github.event.inputs.metric_name }}"
+          echo "Seuil: ${{ github.event.inputs.threshold }}"

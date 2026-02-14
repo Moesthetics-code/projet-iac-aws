@@ -1,0 +1,98 @@
+# ═══════════════════════════════════════════════════════════════
+# terraform-vpc.yml
+# ═══════════════════════════════════════════════════════════════
+
+name: Terraform VPC Deployment
+
+on:
+  workflow_dispatch:
+    inputs:
+      vpc_name:
+        description: 'Nom du VPC'
+        required: true
+        type: string
+      cidr_block:
+        description: 'CIDR Block'
+        required: true
+        type: string
+        default: '10.0.0.0/16'
+      availability_zones:
+        description: 'Nombre de zones AZ'
+        required: true
+        type: choice
+        options:
+          - "2"
+          - "3"
+        default: "2"
+      enable_nat_gateway:
+        description: 'Activer NAT Gateway'
+        required: true
+        type: boolean
+        default: true
+      enable_vpn_gateway:
+        description: 'Activer VPN Gateway'
+        required: false
+        type: boolean
+        default: false
+      enable_dns_hostnames:
+        description: 'Activer DNS Hostnames'
+        required: true
+        type: boolean
+        default: true
+      enable_flow_logs:
+        description: 'Activer Flow Logs'
+        required: false
+        type: boolean
+        default: false
+
+env:
+  AWS_REGION: 'eu-west-3'
+  TF_VERSION: '1.6.0'
+
+jobs:
+  terraform:
+    name: Deploy VPC
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./infra/vpc
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Terraform Init
+        run: terraform init
+
+      - name: Terraform Plan
+        run: |
+          terraform plan \
+            -var="vpc_name=${{ github.event.inputs.vpc_name }}" \
+            -var="cidr_block=${{ github.event.inputs.cidr_block }}" \
+            -var="availability_zones=${{ github.event.inputs.availability_zones }}" \
+            -var="enable_nat_gateway=${{ github.event.inputs.enable_nat_gateway }}" \
+            -var="enable_vpn_gateway=${{ github.event.inputs.enable_vpn_gateway }}" \
+            -var="enable_dns_hostnames=${{ github.event.inputs.enable_dns_hostnames }}" \
+            -var="enable_flow_logs=${{ github.event.inputs.enable_flow_logs }}" \
+            -out=tfplan
+
+      - name: Terraform Apply
+        run: terraform apply tfplan
+
+      - name: Get Outputs
+        id: outputs
+        run: |
+          echo "vpc_id=$(terraform output -raw vpc_id)" >> $GITHUB_OUTPUT
+          echo "vpc_cidr=$(terraform output -raw vpc_cidr_block)" >> $GITHUB_OUTPUT

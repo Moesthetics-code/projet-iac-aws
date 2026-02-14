@@ -1,0 +1,1040 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SONATEL IAC — Déploiement Route 53</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Sora:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --navy-900: #060d1f;
+            --cyan:     #06b6d4;
+            --cyan-dim: #0891b2;
+            --teal:     #0ea5e9;
+            --green:    #22c55e;
+            --white:    #f8fafc;
+            --gray-300: #94a3b8;
+            --card-bg:  rgba(10, 22, 40, 0.92);
+            --border:   rgba(6, 182, 212, 0.18);
+            --glow:     0 0 24px rgba(6,182,212,0.25);
+            --radius:   14px;
+        }
+
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Sora', sans-serif;
+            background: #060d1f;
+            color: #f8fafc;
+            min-height: 100vh;
+            zoom: 0.8;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background-image:
+                linear-gradient(rgba(6,182,212,0.04) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(6,182,212,0.04) 1px, transparent 1px);
+            background-size: 48px 48px;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .topbar {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: rgba(6,13,31,0.85);
+            backdrop-filter: blur(16px);
+            border-bottom: 1px solid var(--border);
+            padding: 0 32px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .topbar-brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-family: 'Space Mono', monospace;
+            font-size: 13px;
+        }
+
+        .topbar-logo {
+            width: 32px; height: 32px;
+            background: linear-gradient(135deg, var(--cyan), var(--teal));
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .btn-back {
+            padding: 8px 16px;
+            background: rgba(6,182,212,0.1);
+            border: 1px solid rgba(6,182,212,0.3);
+            border-radius: 8px;
+            color: var(--cyan);
+            text-decoration: none;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+         /* ── Main Layout ───────────────────────────────────────────── */
+        .page-wrapper {
+            position: relative;
+            z-index: 1;
+            max-width: 1180px;
+            margin: 0 auto;
+            padding: 48px 24px 80px;
+            display: grid;
+            grid-template-columns: 1fr 380px;
+            gap: 32px;
+            align-items: start;
+        }
+
+        /* ── Page Header ───────────────────────────────────────────── */
+        .page-header {
+            grid-column: 1 / -1;
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 24px;
+            margin-bottom: 8px;
+        }
+
+        .page-title-group { flex: 1; }
+
+        .page-eyebrow {
+            font-family: 'Space Mono', monospace;
+            font-size: 11px;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            color: var(--cyan);
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .page-eyebrow::before {
+            content: '';
+            width: 24px; height: 2px;
+            background: var(--cyan);
+        }
+
+        .page-title {
+            font-size: 36px;
+            font-weight: 800;
+            line-height: 1.1;
+            letter-spacing: -0.02em;
+            background: linear-gradient(135deg, var(--white) 30%, var(--cyan));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .page-subtitle {
+            margin-top: 12px;
+            color: var(--gray-300);
+            font-size: 15px;
+            font-weight: 300;
+            line-height: 1.6;
+            max-width: 520px;
+        }
+
+        .region-chip {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 6px;
+            flex-shrink: 0;
+        }
+
+        .chip {
+            font-family: 'Space Mono', monospace;
+            font-size: 11px;
+            padding: 5px 12px;
+            border-radius: 100px;
+            border: 1px solid;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .chip-amber {
+            color: var(--cyan);
+            border-color: rgba(6,182,212,0.4);
+            background: rgba(6,182,212,0.07);
+        }
+
+        .chip-teal {
+            color: var(--cyan);
+            border-color: rgba(14,165,233,0.35);
+            background: rgba(14,165,233,0.07);
+        }
+
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            backdrop-filter: blur(12px);
+        }
+
+        .card-header {
+            padding: 24px 32px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            gap: 14px;
+        }
+
+        .card-header-icon {
+            width: 40px; height: 40px;
+            border-radius: 10px;
+            background: linear-gradient(135deg, rgba(6,182,212,0.2), rgba(6,182,212,0.05));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+        }
+
+        .card-body { padding: 32px; }
+
+        .section-divider {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin: 24px 0;
+        }
+
+        .section-divider-label {
+            font-family: 'Space Mono', monospace;
+            font-size: 10px;
+            text-transform: uppercase;
+            color: var(--gray-300);
+        }
+
+        .section-divider-line {
+            flex: 1;
+            height: 1px;
+            background: var(--border);
+        }
+
+        .field-group { margin-bottom: 24px; }
+
+        .field-label {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 8px;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .req { color: var(--cyan); }
+
+        .field-hint {
+            font-size: 11px;
+            color: var(--gray-300);
+            margin-bottom: 8px;
+            font-style: italic;
+        }
+
+        input, select, textarea {
+            width: 100%;
+            background: rgba(15, 32, 68, 0.6);
+            border: 1.5px solid rgba(6,182,212,0.2);
+            color: var(--white);
+            border-radius: 8px;
+            padding: 13px 16px;
+            font-family: 'Sora', sans-serif;
+            font-size: 14px;
+            outline: none;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            border-color: var(--cyan);
+            box-shadow: var(--glow);
+        }
+
+        .select-wrapper {
+            position: relative;
+        }
+        .select-wrapper::after {
+            content: '▾';
+            position: absolute;
+            right: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--cyan);
+            pointer-events: none;
+        }
+
+        .record-type-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+        }
+
+        .type-card {
+            padding: 14px;
+            background: rgba(15,32,68,0.5);
+            border: 1.5px solid rgba(6,182,212,0.15);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.25s;
+            position: relative;
+            text-align: center;
+        }
+
+        .type-card input {
+            position: absolute;
+            opacity: 0;
+        }
+
+        .type-card:hover {
+            border-color: rgba(6,182,212,0.35);
+        }
+
+        .type-card:has(input:checked) {
+            border-color: var(--cyan);
+            background: rgba(6,182,212,0.08);
+            box-shadow: var(--glow);
+        }
+
+        .type-icon {
+            font-size: 24px;
+            margin-bottom: 6px;
+        }
+
+        .type-name {
+            font-family: 'Space Mono', monospace;
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--white);
+            margin-bottom: 4px;
+        }
+
+        .type-desc {
+            font-size: 10px;
+            color: var(--gray-300);
+        }
+
+        .dns-preview {
+            background: rgba(6,13,31,0.8);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 16px;
+            font-family: 'Space Mono', monospace;
+        }
+
+        .dns-query {
+            background: rgba(6,182,212,0.08);
+            border: 1px solid rgba(6,182,212,0.2);
+            border-radius: 6px;
+            padding: 14px;
+            margin-bottom: 12px;
+        }
+
+        .dns-record {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(6,182,212,0.1);
+            font-size: 12px;
+        }
+
+        .dns-record:last-child { border-bottom: none; }
+
+        .dns-name {
+            color: var(--cyan);
+            font-weight: 700;
+        }
+
+        .dns-value {
+            color: var(--white);
+        }
+
+        .slider-container {
+            padding: 16px;
+            background: rgba(15,32,68,0.5);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+        }
+
+        .slider-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 12px;
+        }
+
+        .slider-value {
+            font-family: 'Space Mono', monospace;
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--cyan);
+        }
+
+        input[type="range"] {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: rgba(148,163,184,0.2);
+            padding: 0;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: var(--cyan);
+            cursor: pointer;
+            box-shadow: 0 0 8px var(--cyan);
+        }
+
+        .toggle-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 16px;
+            background: rgba(15,32,68,0.5);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            margin-bottom: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .toggle-row:hover { 
+            background: rgba(15,32,68,0.8); 
+            border-color: rgba(6,182,212,0.3); 
+        }
+
+        .toggle-row:has(input:checked) { 
+            border-color: rgba(6,182,212,0.5); 
+            background: rgba(6,182,212,0.06); 
+        }
+
+        .toggle-info { flex: 1; }
+        .toggle-info strong { 
+            font-size: 13px; 
+            font-weight: 600; 
+            display: block; 
+            margin-bottom: 2px; 
+        }
+        .toggle-info span { 
+            font-size: 11px; 
+            color: var(--gray-300); 
+        }
+
+        .toggle-switch {
+            position: relative;
+            width: 44px; 
+            height: 24px;
+            flex-shrink: 0;
+        }
+        .toggle-switch input { 
+            opacity: 0; 
+            width: 0; 
+            height: 0; 
+        }
+        .toggle-slider {
+            position: absolute;
+            inset: 0;
+            background: rgba(148,163,184,0.2);
+            border-radius: 100px;
+            transition: 0.3s;
+            cursor: pointer;
+        }
+        .toggle-slider::before {
+            content: '';
+            position: absolute;
+            height: 18px; 
+            width: 18px;
+            left: 3px; 
+            bottom: 3px;
+            background: var(--gray-300);
+            border-radius: 50%;
+            transition: 0.3s;
+        }
+        .toggle-switch input:checked + .toggle-slider {
+            background: rgba(6,182,212,0.4);
+        }
+        .toggle-switch input:checked + .toggle-slider::before {
+            transform: translateX(20px);
+            background: var(--cyan);
+            box-shadow: 0 0 8px var(--cyan);
+        }
+
+        .routing-policy-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .policy-card {
+            padding: 12px;
+            background: rgba(15,32,68,0.5);
+            border: 1.5px solid rgba(6,182,212,0.15);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.25s;
+            position: relative;
+        }
+
+        .policy-card input {
+            position: absolute;
+            opacity: 0;
+        }
+
+        .policy-card:hover {
+            border-color: rgba(6,182,212,0.35);
+        }
+
+        .policy-card:has(input:checked) {
+            border-color: var(--cyan);
+            background: rgba(6,182,212,0.08);
+        }
+
+        .policy-title {
+            font-size: 12px;
+            font-weight: 700;
+            margin-bottom: 4px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .policy-desc {
+            font-size: 10px;
+            color: var(--gray-300);
+            line-height: 1.4;
+        }
+
+        .ns-servers {
+            background: rgba(6,182,212,0.08);
+            border: 1px solid rgba(6,182,212,0.2);
+            border-radius: 8px;
+            padding: 16px;
+            margin-top: 12px;
+        }
+
+        .ns-server {
+            font-family: 'Space Mono', monospace;
+            font-size: 12px;
+            padding: 8px;
+            background: rgba(6,13,31,0.6);
+            border-radius: 4px;
+            margin-bottom: 6px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .ns-server:last-child { margin-bottom: 0; }
+
+        .btn-primary {
+            width: 100%;
+            padding: 17px;
+            background: linear-gradient(135deg, var(--cyan), var(--cyan-dim));
+            border: none;
+            border-radius: 10px;
+            color: var(--white);
+            font-size: 15px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 16px 40px rgba(6,182,212,0.4);
+        }
+
+        .info-panel {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+        }
+
+        .info-panel-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border);
+            font-family: 'Space Mono', monospace;
+            font-size: 12px;
+            color: var(--cyan);
+        }
+
+        .info-item {
+            padding: 14px 20px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .info-item:last-child { border-bottom: none; }
+
+        .warning-box {
+            background: rgba(245,158,11,0.1);
+            border: 1px solid rgba(245,158,11,0.3);
+            border-radius: 8px;
+            padding: 14px 16px;
+            margin-bottom: 24px;
+            display: flex;
+            gap: 12px;
+            align-items: flex-start;
+        }
+
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .card { animation: fadeInUp 0.5s ease-out; }
+
+        @media (max-width: 900px) {
+            .page-wrapper { grid-template-columns: 1fr; }
+            .record-type-grid { grid-template-columns: repeat(2, 1fr); }
+            .routing-policy-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+<header class="topbar">
+    <div class="topbar-brand">
+        <div class="topbar-logo">🌍</div>
+        <span>PROJET IAC</span> <strong>SONATEL</strong>
+    </div>
+    <a href="/" class="btn-back">← Tous les services</a>
+</header>
+
+<main class="page-wrapper">
+
+    <div class="page-header">
+        <div class="page-title-group">
+            <div class="page-eyebrow">Infrastructure as Code · AWS Route 53</div>
+            <h1 class="page-title">Déploiement Route 53<br>DNS Management</h1>
+            <p class="page-subtitle">
+                Créez une zone DNS avec enregistrements A/CNAME/MX, et configurez le routage géographique.
+            </p>
+        </div>
+        <div class="region-chip">
+            <div class="chip chip-teal">🔵 AWS S3</div>
+            <div class="chip chip-amber">⚡ Terraform 1.x</div>
+            <div class="chip chip-teal">🔄 GitHub Actions</div>
+        </div>
+    </div>
+
+
+    <div class="card">
+        <div class="card-header">
+            <div class="card-header-icon">🌍</div>
+            <div>
+                <h3 style="font-size: 16px; font-weight: 700;">Configuration Route 53</h3>
+                <p style="font-size: 12px; color: var(--gray-300);">Système de noms de domaine</p>
+            </div>
+        </div>
+
+        <div class="card-body">
+            <div class="warning-box">
+                <span style="font-size: 20px;">⚠️</span>
+                <div style="font-size: 12px;">
+                    <strong>Important:</strong> Vous devez être propriétaire du nom de domaine. 
+                    Après création de la zone, configurez les NS servers chez votre registrar (Namecheap, OVH, GoDaddy...).
+                </div>
+            </div>
+
+            <form method="post" action="/trigger-route53" id="route53Form">
+
+                <div class="section-divider">
+                    <span class="section-divider-label">01 — Zone DNS</span>
+                    <div class="section-divider-line"></div>
+                </div>
+
+                <div class="field-group">
+                    <label class="field-label">
+                        Nom de domaine <span class="req">*</span>
+                    </label>
+                    <p class="field-hint">Domaine que vous possédez (ex: example.com, monsite.fr)</p>
+                    <input
+                        type="text"
+                        name="zone_name"
+                        id="zone_name"
+                        placeholder="example.com"
+                        required
+                        pattern="^[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?)*$"
+                    >
+                </div>
+
+                <div class="field-group">
+                    <label class="field-label">
+                        Type de zone <span class="req">*</span>
+                    </label>
+                    <div class="routing-policy-grid">
+                        <label class="policy-card">
+                            <input type="radio" name="zone_type" value="public" checked>
+                            <div class="policy-title">🌐 Public</div>
+                            <div class="policy-desc">Accessible depuis Internet</div>
+                        </label>
+                        <label class="policy-card">
+                            <input type="radio" name="zone_type" value="private">
+                            <div class="policy-title">🔒 Private</div>
+                            <div class="policy-desc">Uniquement dans votre VPC</div>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="section-divider">
+                    <span class="section-divider-label">02 — Enregistrement DNS</span>
+                    <div class="section-divider-line"></div>
+                </div>
+
+                <div class="field-group">
+                    <label class="field-label">
+                        Nom de l'enregistrement
+                    </label>
+                    <p class="field-hint">Sous-domaine (www, api, mail...) ou vide pour le domaine racine (@)</p>
+                    <input
+                        type="text"
+                        name="record_name"
+                        id="record_name"
+                        placeholder="www"
+                    >
+                </div>
+
+                <div class="field-group">
+                    <label class="field-label">
+                        Type d'enregistrement <span class="req">*</span>
+                    </label>
+                    <div class="record-type-grid">
+                        <label class="type-card">
+                            <input type="radio" name="record_type" value="A" checked>
+                            <div class="type-icon">🔵</div>
+                            <div class="type-name">A</div>
+                            <div class="type-desc">IPv4 address</div>
+                        </label>
+                        <label class="type-card">
+                            <input type="radio" name="record_type" value="AAAA">
+                            <div class="type-icon">🔷</div>
+                            <div class="type-name">AAAA</div>
+                            <div class="type-desc">IPv6 address</div>
+                        </label>
+                        <label class="type-card">
+                            <input type="radio" name="record_type" value="CNAME">
+                            <div class="type-icon">🔗</div>
+                            <div class="type-name">CNAME</div>
+                            <div class="type-desc">Alias canonical</div>
+                        </label>
+                        <label class="type-card">
+                            <input type="radio" name="record_type" value="MX">
+                            <div class="type-icon">📧</div>
+                            <div class="type-name">MX</div>
+                            <div class="type-desc">Mail server</div>
+                        </label>
+                        <label class="type-card">
+                            <input type="radio" name="record_type" value="TXT">
+                            <div class="type-icon">📝</div>
+                            <div class="type-name">TXT</div>
+                            <div class="type-desc">Text record</div>
+                        </label>
+                        <label class="type-card">
+                            <input type="radio" name="record_type" value="NS">
+                            <div class="type-icon">🌐</div>
+                            <div class="type-name">NS</div>
+                            <div class="type-desc">Name server</div>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="field-group">
+                    <label class="field-label">
+                        Valeur <span class="req">*</span>
+                    </label>
+                    <p class="field-hint" id="recordHint">Adresse IP (ex: 203.0.113.1)</p>
+                    <textarea
+                        name="record_value"
+                        id="record_value"
+                        placeholder="203.0.113.1"
+                        rows="2"
+                        required
+                    ></textarea>
+                </div>
+
+                <div class="field-group">
+                    <label class="field-label">TTL (Time To Live)</label>
+                    <div class="slider-container">
+                        <div class="slider-header">
+                            <span style="font-size: 12px; color: var(--gray-300);">60s</span>
+                            <span class="slider-value"><span id="ttlValue">300</span>s</span>
+                            <span style="font-size: 12px; color: var(--gray-300);">86400s</span>
+                        </div>
+                        <input
+                            type="range"
+                            name="ttl"
+                            id="ttl"
+                            min="60"
+                            max="86400"
+                            step="60"
+                            value="300"
+                        >
+                    </div>
+                    <p class="field-hint" style="margin-top: 8px;">Durée de cache DNS. 300s (5min) recommandé. Plus court = mises à jour rapides.</p>
+                </div>
+
+                <div class="section-divider">
+                    <span class="section-divider-label">03 — Politique de routage</span>
+                    <div class="section-divider-line"></div>
+                </div>
+
+                <div class="field-group">
+                    <div class="routing-policy-grid">
+                        <label class="policy-card">
+                            <input type="radio" name="routing_policy" value="simple" checked>
+                            <div class="policy-title">📍 Simple</div>
+                            <div class="policy-desc">Routage standard vers une seule ressource</div>
+                        </label>
+                        <label class="policy-card">
+                            <input type="radio" name="routing_policy" value="weighted">
+                            <div class="policy-title">⚖️ Weighted</div>
+                            <div class="policy-desc">Répartition du trafic par poids</div>
+                        </label>
+                        <label class="policy-card">
+                            <input type="radio" name="routing_policy" value="latency">
+                            <div class="policy-title">⚡ Latency</div>
+                            <div class="policy-desc">Routage vers la région la plus rapide</div>
+                        </label>
+                        <label class="policy-card">
+                            <input type="radio" name="routing_policy" value="geolocation">
+                            <div class="policy-title">🌍 Geolocation</div>
+                            <div class="policy-desc">Routage par localisation géographique</div>
+                        </label>
+                        <label class="policy-card">
+                            <input type="radio" name="routing_policy" value="failover">
+                            <div class="policy-title">🔄 Failover</div>
+                            <div class="policy-desc">Basculement automatique en cas de panne</div>
+                        </label>
+                        <label class="policy-card">
+                            <input type="radio" name="routing_policy" value="multivalue">
+                            <div class="policy-title">🎯 Multivalue</div>
+                            <div class="policy-desc">Plusieurs valeurs avec health checks</div>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="section-divider">
+                    <span class="section-divider-label">04 — Options avancées</span>
+                    <div class="section-divider-line"></div>
+                </div>
+
+                <div class="toggle-row" for="enable_health_check">
+                    <div class="toggle-info">
+                        <strong>Health Check</strong>
+                        <span>Surveille la disponibilité de l'endpoint ($0.50/health check/mois)</span>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="enable_health_check" name="enable_health_check">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+
+                <div class="field-group">
+                    <label class="field-label">Aperçu DNS</label>
+                    <div class="dns-preview">
+                        <div class="dns-query">
+                            <strong style="color: var(--cyan);">$ dig <span id="previewDomain">example.com</span></strong>
+                        </div>
+                        <div class="dns-record">
+                            <span class="dns-name" id="previewRecordName">example.com.</span>
+                            <span style="font-size: 10px; color: var(--gray-300);">
+                                <span id="previewTTL">300</span> IN <span id="previewType">A</span>
+                            </span>
+                            <span class="dns-value" id="previewValue">203.0.113.1</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="ns-servers" id="nsServers" style="display: none;">
+                    <div style="font-size: 12px; font-weight: 700; margin-bottom: 10px; color: var(--cyan);">
+                        Serveurs NS (à configurer chez votre registrar):
+                    </div>
+                    <div class="ns-server">📍 ns-123.awsdns-12.com</div>
+                    <div class="ns-server">📍 ns-456.awsdns-34.net</div>
+                    <div class="ns-server">📍 ns-789.awsdns-56.org</div>
+                    <div class="ns-server">📍 ns-012.awsdns-78.co.uk</div>
+                </div>
+
+                <div style="margin-top: 32px;">
+                    <button type="submit" class="btn-primary">
+                        🌍 Créer la zone DNS
+                    </button>
+                </div>
+
+                <p style="text-align: center; margin-top: 12px; font-size: 11px; color: var(--gray-300); font-family: 'Space Mono', monospace;">
+                    ⏱️ La propagation DNS peut prendre jusqu'à 48 heures
+                </p>
+
+            </form>
+        </div>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 20px;">
+        <div class="info-panel">
+            <div class="info-panel-header">🏗️ Ressources créées</div>
+            <div style="padding: 16px 20px;">
+                <div style="font-size: 11px; line-height: 1.8; color: var(--gray-300); font-family: 'Space Mono', monospace;">
+                    • aws_route53_zone<br>
+                    • aws_route53_record<br>
+                    • aws_route53_health_check (optionnel)<br>
+                    • aws_route53_traffic_policy (pour routage avancé)
+                </div>
+            </div>
+        </div>
+
+        <div class="info-panel">
+            <div class="info-panel-header">💰 Coûts</div>
+            <div class="info-item">
+                <div style="font-weight: 700; font-size: 12px; margin-bottom: 4px;">💵 Zone hébergée</div>
+                <div style="font-size: 11px; color: var(--gray-300); line-height: 1.5;">
+                    $0.50/mois par zone hébergée. Premières 25 zones: $0.50/mois chacune.
+                </div>
+            </div>
+            <div class="info-item">
+                <div style="font-weight: 700; font-size: 12px; margin-bottom: 4px;">🔍 Requêtes</div>
+                <div style="font-size: 11px; color: var(--gray-300); line-height: 1.5;">
+                    $0.40 par million de requêtes (premier milliard). $0.20 au-delà.
+                </div>
+            </div>
+            <div class="info-item">
+                <div style="font-weight: 700; font-size: 12px; margin-bottom: 4px;">💚 Health Checks</div>
+                <div style="font-size: 11px; color: var(--gray-300); line-height: 1.5;">
+                    $0.50/mois par health check. Requis pour Failover et Multivalue routing.
+                </div>
+            </div>
+        </div>
+
+        <div class="info-panel">
+            <div class="info-panel-header">📚 Types d'enregistrements</div>
+            <div class="info-item">
+                <div style="font-weight: 700; font-size: 12px; margin-bottom: 4px;">A / AAAA</div>
+                <div style="font-size: 11px; color: var(--gray-300); line-height: 1.5;">
+                    Pointe vers une adresse IP (v4 ou v6). Ex: 203.0.113.1
+                </div>
+            </div>
+            <div class="info-item">
+                <div style="font-weight: 700; font-size: 12px; margin-bottom: 4px;">CNAME</div>
+                <div style="font-size: 11px; color: var(--gray-300); line-height: 1.5;">
+                    Alias vers un autre domaine. Ex: www → example.com
+                </div>
+            </div>
+            <div class="info-item">
+                <div style="font-weight: 700; font-size: 12px; margin-bottom: 4px;">MX</div>
+                <div style="font-size: 11px; color: var(--gray-300); line-height: 1.5;">
+                    Serveurs de messagerie. Ex: 10 mail.example.com
+                </div>
+            </div>
+            <div class="info-item">
+                <div style="font-weight: 700; font-size: 12px; margin-bottom: 4px;">TXT</div>
+                <div style="font-size: 11px; color: var(--gray-300); line-height: 1.5;">
+                    Texte libre. Utilisé pour SPF, DKIM, vérification domaine.
+                </div>
+            </div>
+        </div>
+    </div>
+
+</main>
+
+<script>
+    const zoneNameInput = document.getElementById('zone_name');
+    const recordNameInput = document.getElementById('record_name');
+    const recordTypeInputs = document.querySelectorAll('input[name="record_type"]');
+    const recordValueInput = document.getElementById('record_value');
+    const ttlSlider = document.getElementById('ttl');
+    const ttlValue = document.getElementById('ttlValue');
+    const recordHint = document.getElementById('recordHint');
+
+    const previewDomain = document.getElementById('previewDomain');
+    const previewRecordName = document.getElementById('previewRecordName');
+    const previewType = document.getElementById('previewType');
+    const previewValue = document.getElementById('previewValue');
+    const previewTTL = document.getElementById('previewTTL');
+
+    const recordHints = {
+        'A': 'Adresse IPv4 (ex: 203.0.113.1)',
+        'AAAA': 'Adresse IPv6 (ex: 2001:0db8:85a3::8a2e:0370:7334)',
+        'CNAME': 'Nom de domaine canonical (ex: example.com)',
+        'MX': 'Priorité et serveur mail (ex: 10 mail.example.com)',
+        'TXT': 'Texte entre guillemets (ex: "v=spf1 include:_spf.google.com ~all")',
+        'NS': 'Nom du serveur DNS (ex: ns1.example.com)'
+    };
+
+    const recordPlaceholders = {
+        'A': '203.0.113.1',
+        'AAAA': '2001:0db8:85a3::8a2e:0370:7334',
+        'CNAME': 'example.com',
+        'MX': '10 mail.example.com',
+        'TXT': '"v=spf1 include:_spf.google.com ~all"',
+        'NS': 'ns1.example.com'
+    };
+
+    recordTypeInputs.forEach(input => {
+        input.addEventListener('change', () => {
+            const type = input.value;
+            recordHint.textContent = recordHints[type] || '';
+            recordValueInput.placeholder = recordPlaceholders[type] || '';
+            updatePreview();
+        });
+    });
+
+    ttlSlider.addEventListener('input', () => {
+        ttlValue.textContent = ttlSlider.value;
+        updatePreview();
+    });
+
+    function updatePreview() {
+        const zoneName = zoneNameInput.value || 'example.com';
+        const recordName = recordNameInput.value;
+        const recordType = document.querySelector('input[name="record_type"]:checked').value;
+        const recordValue = recordValueInput.value || recordPlaceholders[recordType];
+        const ttl = ttlSlider.value;
+
+        const fullDomain = recordName ? `${recordName}.${zoneName}` : zoneName;
+
+        previewDomain.textContent = fullDomain;
+        previewRecordName.textContent = fullDomain + '.';
+        previewType.textContent = recordType;
+        previewValue.textContent = recordValue;
+        previewTTL.textContent = ttl;
+    }
+
+    zoneNameInput.addEventListener('input', updatePreview);
+    recordNameInput.addEventListener('input', updatePreview);
+    recordValueInput.addEventListener('input', updatePreview);
+
+    document.querySelectorAll('.toggle-row').forEach(row => {
+        row.addEventListener('click', e => {
+            if (e.target.tagName === 'INPUT') return;
+            const cb = row.querySelector('input[type="checkbox"]');
+            if (cb) cb.checked = !cb.checked;
+        });
+    });
+
+    document.getElementById('route53Form').addEventListener('submit', function(e) {
+        const zoneName = zoneNameInput.value;
+        if (!zoneName) {
+            e.preventDefault();
+            alert('⚠️ Le nom de domaine est obligatoire');
+            return false;
+        }
+
+        document.getElementById('nsServers').style.display = 'block';
+    });
+
+    updatePreview();
+</script>
+</body>
+</html>

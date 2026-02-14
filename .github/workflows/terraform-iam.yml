@@ -1,0 +1,65 @@
+# ═══════════════════════════════════════════════════════════════
+# terraform-iam.yml
+# ═══════════════════════════════════════════════════════════════
+
+name: Terraform IAM Deployment
+
+on:
+  workflow_dispatch:
+    inputs:
+      resource_type:
+        description: 'Type de ressource'
+        required: true
+        type: choice
+        options:
+          - user
+          - group
+          - role
+          - policy
+      resource_name:
+        description: 'Nom de la ressource'
+        required: true
+        type: string
+      path:
+        description: 'Path IAM'
+        required: false
+        type: string
+        default: '/'
+
+env:
+  AWS_REGION: 'eu-west-3'
+  TF_VERSION: '1.6.0'
+
+jobs:
+  terraform:
+    name: Deploy IAM Resource
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./infra/iam
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Terraform Init
+        run: terraform init
+
+      - name: Terraform Apply
+        run: |
+          terraform apply -auto-approve \
+            -var="resource_type=${{ github.event.inputs.resource_type }}" \
+            -var="resource_name=${{ github.event.inputs.resource_name }}" \
+            -var="path=${{ github.event.inputs.path }}"

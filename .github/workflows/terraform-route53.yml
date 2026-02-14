@@ -1,0 +1,131 @@
+name: Terraform Route 53 Deployment
+
+on:
+  workflow_dispatch:
+    inputs:
+      zone_name:
+        description: 'Nom de domaine'
+        required: true
+        type: string
+      zone_type:
+        description: 'Type de zone'
+        required: true
+        type: choice
+        options:
+          - public
+          - private
+        default: 'public'
+      vpc_id:
+        description: 'VPC ID (pour zone private)'
+        required: false
+        type: string
+      record_name:
+        description: 'Nom de l enregistrement (sous-domaine)'
+        required: false
+        type: string
+      record_type:
+        description: 'Type d enregistrement'
+        required: true
+        type: choice
+        options:
+          - A
+          - AAAA
+          - CNAME
+          - MX
+          - TXT
+          - NS
+        default: 'A'
+      record_value:
+        description: 'Valeur de l enregistrement'
+        required: true
+        type: string
+      ttl:
+        description: 'TTL (secondes)'
+        required: true
+        type: number
+        default: 300
+      routing_policy:
+        description: 'Politique de routage'
+        required: false
+        type: choice
+        options:
+          - simple
+          - weighted
+          - latency
+          - geolocation
+          - failover
+          - multivalue
+        default: 'simple'
+      enable_health_check:
+        description: 'Activer health check'
+        required: false
+        type: boolean
+        default: false
+
+env:
+  AWS_REGION: 'eu-west-3'
+  TF_VERSION: '1.6.0'
+
+jobs:
+  terraform:
+    name: Deploy Route 53 Zone
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./infra/route53
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Terraform Init
+        run: terraform init
+
+      - name: Terraform Validate
+        run: terraform validate
+
+      - name: Terraform Plan
+        run: |
+          terraform plan \
+            -var="zone_name=${{ github.event.inputs.zone_name }}" \
+            -var="zone_type=${{ github.event.inputs.zone_type }}" \
+            -var="vpc_id=${{ github.event.inputs.vpc_id }}" \
+            -var="record_name=${{ github.event.inputs.record_name }}" \
+            -var="record_type=${{ github.event.inputs.record_type }}" \
+            -var="record_value=${{ github.event.inputs.record_value }}" \
+            -var="ttl=${{ github.event.inputs.ttl }}" \
+            -var="routing_policy=${{ github.event.inputs.routing_policy }}" \
+            -var="enable_health_check=${{ github.event.inputs.enable_health_check }}" \
+            -out=tfplan
+
+      - name: Terraform Apply
+        run: terraform apply -auto-approve tfplan
+
+      - name: Get Outputs
+        id: outputs
+        run: |
+          echo "zone_id=$(terraform output -raw zone_id)" >> $GITHUB_OUTPUT
+          echo "name_servers=$(terraform output -json name_servers | jq -r 'join(", ")')" >> $GITHUB_OUTPUT
+
+      - name: Display Results
+        run: |
+          echo "✅ Zone Route 53 créée avec succès!"
+          echo ""
+          echo "Zone ID: ${{ steps.outputs.outputs.zone_id }}"
+          echo "Domaine: ${{ github.event.inputs.zone_name }}"
+          echo "Type: ${{ github.event.inputs.zone_type }}"
+          echo ""
+          echo "📌 Name Servers (à configurer chez votre registrar):"
+          echo "${{ steps.outputs.outputs.name_servers }}"

@@ -1,0 +1,1096 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SONATEL IAC — Déploiement RDS</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Sora:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --navy-900: #060d1f;
+            --navy-800: #0a1628;
+            --navy-700: #0f2044;
+            --blue:     #3b82f6;
+            --blue-dim: #1e40af;
+            --teal:     #0ea5e9;
+            --green:    #22c55e;
+            --red:      #ef4444;
+            --white:    #f8fafc;
+            --gray-300: #94a3b8;
+            --gray-200: #cbd5e1;
+            --card-bg:  rgba(10, 22, 40, 0.92);
+            --border:   rgba(59, 130, 246, 0.18);
+            --glow-blue:0 0 24px rgba(59,130,246,0.25);
+            --radius:   14px;
+            --radius-sm:8px;
+        }
+
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        html { scroll-behavior: smooth; }
+
+        body {
+            font-family: 'Sora', sans-serif;
+            background-color: var(--navy-900);
+            color: var(--white);
+            min-height: 100vh;
+            overflow-x: hidden;
+            position: relative;
+            zoom: 0.8;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background-image:
+                linear-gradient(rgba(59,130,246,0.04) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(59,130,246,0.04) 1px, transparent 1px);
+            background-size: 48px 48px;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        body::after {
+            content: '';
+            position: fixed;
+            width: 600px; height: 600px;
+            background: radial-gradient(circle, rgba(59,130,246,0.07) 0%, transparent 70%);
+            top: -150px; right: -150px;
+            pointer-events: none;
+            z-index: 0;
+            animation: orbFloat 10s ease-in-out infinite alternate;
+        }
+
+        @keyframes orbFloat {
+            from { transform: translate(0,0) scale(1); }
+            to   { transform: translate(-30px, 40px) scale(1.1); }
+        }
+
+        .orb-left {
+            position: fixed;
+            width: 500px; height: 500px;
+            background: radial-gradient(circle, rgba(14,165,233,0.08) 0%, transparent 70%);
+            bottom: -100px; left: -100px;
+            pointer-events: none;
+            z-index: 0;
+            animation: orbFloat 13s ease-in-out infinite alternate-reverse;
+        }
+
+        .topbar {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: rgba(6,13,31,0.85);
+            backdrop-filter: blur(16px);
+            border-bottom: 1px solid var(--border);
+            padding: 0 32px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .topbar-brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-family: 'Space Mono', monospace;
+            font-size: 13px;
+            letter-spacing: 0.05em;
+        }
+
+        .topbar-logo {
+            width: 32px; height: 32px;
+            background: linear-gradient(135deg, var(--blue), var(--teal));
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+        }
+
+        .topbar-brand span { color: var(--gray-300); }
+        .topbar-brand strong { color: var(--white); }
+
+        .topbar-right {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .status-dot {
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            background: var(--green);
+            box-shadow: 0 0 8px var(--green);
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50%       { opacity: 0.4; }
+        }
+
+        .topbar-service {
+            font-family: 'Space Mono', monospace;
+            font-size: 11px;
+            color: var(--gray-300);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn-back {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            background: rgba(59,130,246,0.1);
+            border: 1px solid rgba(59,130,246,0.3);
+            border-radius: 8px;
+            color: var(--blue);
+            text-decoration: none;
+            font-size: 12px;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+        .btn-back:hover { background: rgba(59,130,246,0.15); }
+
+        .page-wrapper {
+            position: relative;
+            z-index: 1;
+            max-width: 1180px;
+            margin: 0 auto;
+            padding: 48px 24px 80px;
+            display: grid;
+            grid-template-columns: 1fr 380px;
+            gap: 32px;
+            align-items: start;
+        }
+
+        .page-header {
+            grid-column: 1 / -1;
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 24px;
+            margin-bottom: 8px;
+        }
+
+        .page-title-group { flex: 1; }
+
+        .page-eyebrow {
+            font-family: 'Space Mono', monospace;
+            font-size: 11px;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            color: var(--blue);
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .page-eyebrow::before {
+            content: '';
+            width: 24px; height: 2px;
+            background: var(--blue);
+        }
+
+        .page-title {
+            font-size: 36px;
+            font-weight: 800;
+            line-height: 1.1;
+            letter-spacing: -0.02em;
+            background: linear-gradient(135deg, var(--white) 30%, var(--blue));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .page-subtitle {
+            margin-top: 12px;
+            color: var(--gray-300);
+            font-size: 15px;
+            font-weight: 300;
+            line-height: 1.6;
+            max-width: 520px;
+        }
+
+        .region-chip {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 6px;
+            flex-shrink: 0;
+        }
+
+        .chip {
+            font-family: 'Space Mono', monospace;
+            font-size: 11px;
+            padding: 5px 12px;
+            border-radius: 100px;
+            border: 1px solid;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .chip-blue {
+            color: var(--blue);
+            border-color: rgba(59,130,246,0.4);
+            background: rgba(59,130,246,0.07);
+        }
+
+        .chip-teal {
+            color: var(--teal);
+            border-color: rgba(14,165,233,0.35);
+            background: rgba(14,165,233,0.07);
+        }
+
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            overflow: hidden;
+            backdrop-filter: blur(12px);
+        }
+
+        .card-header {
+            padding: 24px 32px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .card-header-icon {
+            width: 40px; height: 40px;
+            border-radius: 10px;
+            background: linear-gradient(135deg, rgba(59,130,246,0.2), rgba(59,130,246,0.05));
+            border: 1px solid rgba(59,130,246,0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            flex-shrink: 0;
+        }
+
+        .card-header-text h3 {
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--white);
+            margin-bottom: 2px;
+        }
+
+        .card-header-text p {
+            font-size: 12px;
+            color: var(--gray-300);
+        }
+
+        .card-body { padding: 32px; }
+
+        .section-divider {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin: 8px 0 24px;
+        }
+
+        .section-divider-label {
+            font-family: 'Space Mono', monospace;
+            font-size: 10px;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: var(--gray-300);
+            white-space: nowrap;
+        }
+
+        .section-divider-line {
+            flex: 1;
+            height: 1px;
+            background: var(--border);
+        }
+
+        .field-group { margin-bottom: 24px; }
+
+        .field-label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--gray-200);
+        }
+
+        .field-label .req {
+            color: var(--blue);
+            font-size: 16px;
+            line-height: 1;
+        }
+
+        .field-hint {
+            font-size: 11px;
+            color: var(--gray-300);
+            margin-bottom: 8px;
+            font-weight: 300;
+            font-style: italic;
+        }
+
+        input[type="text"],
+        input[type="number"],
+        input[type="password"],
+        select {
+            width: 100%;
+            background: rgba(15, 32, 68, 0.6);
+            border: 1.5px solid rgba(59,130,246,0.2);
+            color: var(--white);
+            border-radius: var(--radius-sm);
+            padding: 13px 16px;
+            font-family: 'Sora', sans-serif;
+            font-size: 14px;
+            transition: border-color 0.25s, box-shadow 0.25s, background 0.25s;
+            appearance: none;
+            -webkit-appearance: none;
+            outline: none;
+        }
+
+        input::placeholder { color: rgba(148,163,184,0.5); }
+
+        input:focus,
+        select:focus {
+            border-color: var(--blue);
+            background: rgba(15, 32, 68, 0.9);
+            box-shadow: var(--glow-blue);
+        }
+
+        input.error-field { border-color: var(--red) !important; }
+
+        .select-wrapper {
+            position: relative;
+        }
+        .select-wrapper::after {
+            content: '▾';
+            position: absolute;
+            right: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--blue);
+            pointer-events: none;
+            font-size: 14px;
+        }
+        .select-wrapper select { padding-right: 36px; cursor: pointer; }
+        select option {
+            background: var(--navy-800);
+            color: var(--white);
+        }
+
+        .toggle-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 16px;
+            background: rgba(15,32,68,0.5);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            margin-bottom: 12px;
+            cursor: pointer;
+            transition: background 0.2s, border-color 0.2s;
+        }
+        .toggle-row:hover { background: rgba(15,32,68,0.8); border-color: rgba(59,130,246,0.3); }
+        .toggle-row:has(input:checked) { border-color: rgba(59,130,246,0.5); background: rgba(59,130,246,0.06); }
+
+        .toggle-info { flex: 1; }
+        .toggle-info strong { font-size: 13px; font-weight: 600; display: block; margin-bottom: 2px; }
+        .toggle-info span { font-size: 11px; color: var(--gray-300); }
+
+        .toggle-switch {
+            position: relative;
+            width: 44px; height: 24px;
+            flex-shrink: 0;
+        }
+        .toggle-switch input { opacity: 0; width: 0; height: 0; }
+        .toggle-slider {
+            position: absolute;
+            inset: 0;
+            background: rgba(148,163,184,0.2);
+            border-radius: 100px;
+            transition: 0.3s;
+            cursor: pointer;
+        }
+        .toggle-slider::before {
+            content: '';
+            position: absolute;
+            height: 18px; width: 18px;
+            left: 3px; bottom: 3px;
+            background: var(--gray-300);
+            border-radius: 50%;
+            transition: 0.3s;
+        }
+        .toggle-switch input:checked + .toggle-slider {
+            background: rgba(59,130,246,0.4);
+        }
+        .toggle-switch input:checked + .toggle-slider::before {
+            transform: translateX(20px);
+            background: var(--blue);
+            box-shadow: 0 0 8px var(--blue);
+        }
+
+        .validation-msg {
+            font-size: 11px;
+            margin-top: 5px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            min-height: 16px;
+        }
+        .validation-msg.error { color: #f87171; }
+        .validation-msg.success { color: var(--green); }
+
+        .btn-primary {
+            width: 100%;
+            padding: 17px;
+            background: linear-gradient(135deg, var(--blue) 0%, #2563eb 100%);
+            border: none;
+            border-radius: 10px;
+            color: var(--white);
+            font-family: 'Sora', sans-serif;
+            font-size: 15px;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+        .btn-primary::before {
+            content: '';
+            position: absolute;
+            top: -50%; left: -60%;
+            width: 200%; height: 200%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
+            transform: rotate(30deg) translateX(-100%);
+            transition: transform 0.6s;
+        }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 16px 40px rgba(59,130,246,0.4);
+        }
+        .btn-primary:hover::before { transform: rotate(30deg) translateX(200%); }
+        .btn-primary:active { transform: translateY(0); }
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+        .spinner {
+            width: 18px; height: 18px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-top-color: var(--white);
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+            display: none;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .side-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .info-panel {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            overflow: hidden;
+        }
+
+        .info-panel-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border);
+            font-size: 12px;
+            font-family: 'Space Mono', monospace;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--blue);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .info-item {
+            padding: 14px 20px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            gap: 12px;
+            align-items: flex-start;
+        }
+        .info-item:last-child { border-bottom: none; }
+
+        .info-item-icon {
+            font-size: 18px;
+            flex-shrink: 0;
+            margin-top: 1px;
+        }
+
+        .info-item-title {
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--white);
+            margin-bottom: 3px;
+        }
+        .info-item-desc {
+            font-size: 11px;
+            color: var(--gray-300);
+            line-height: 1.5;
+        }
+
+        .resource-list { padding: 16px 20px; }
+
+        .resource-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 0;
+            border-bottom: 1px solid var(--border);
+            font-size: 12px;
+        }
+        .resource-item:last-child { border-bottom: none; }
+
+        .resource-icon {
+            width: 28px; height: 28px;
+            border-radius: 6px;
+            background: rgba(59,130,246,0.12);
+            border: 1px solid rgba(59,130,246,0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            flex-shrink: 0;
+        }
+
+        .resource-name { font-weight: 600; color: var(--white); margin-bottom: 1px; }
+        .resource-type { color: var(--gray-300); font-size: 10px; font-family: 'Space Mono', monospace; }
+
+        .alert-banner {
+            display: none;
+            padding: 12px 16px;
+            border-radius: var(--radius-sm);
+            font-size: 13px;
+            margin-bottom: 24px;
+            align-items: flex-start;
+            gap: 10px;
+        }
+        .alert-banner.error {
+            background: rgba(239,68,68,0.1);
+            border: 1px solid rgba(239,68,68,0.3);
+            color: #fca5a5;
+            display: flex;
+        }
+
+        @media (max-width: 900px) {
+            .page-wrapper {
+                grid-template-columns: 1fr;
+                padding: 32px 16px 60px;
+            }
+            .page-header { flex-direction: column; gap: 16px; }
+        }
+
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .card { animation: fadeInUp 0.5s ease-out both; }
+        .side-panel > * { animation: fadeInUp 0.5s ease-out both; }
+        .side-panel > *:nth-child(2) { animation-delay: 0.08s; }
+        .side-panel > *:nth-child(3) { animation-delay: 0.16s; }
+
+        .footer-note {
+            grid-column: 1 / -1;
+            text-align: center;
+            font-size: 11px;
+            color: var(--gray-300);
+            margin-top: 8px;
+            font-family: 'Space Mono', monospace;
+        }
+
+        .password-gen-btn {
+            margin-top: 8px;
+            padding: 8px 14px;
+            background: rgba(59,130,246,0.1);
+            border: 1px solid rgba(59,130,246,0.3);
+            border-radius: 6px;
+            color: var(--blue);
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-block;
+        }
+        .password-gen-btn:hover { background: rgba(59,130,246,0.15); }
+    </style>
+</head>
+<body>
+<div class="orb-left"></div>
+
+<header class="topbar">
+    <div class="topbar-brand">
+        <div class="topbar-logo">🗄️</div>
+        <span>PROJET IAC</span> <strong>SONATEL</strong>
+    </div>
+    <div class="topbar-right">
+        <a href="/" class="btn-back">← Tous les services</a>
+        <div class="topbar-service">
+            <div class="status-dot"></div>
+            Services opérationnels
+        </div>
+    </div>
+</header>
+
+<main class="page-wrapper">
+
+    <div class="page-header">
+        <div class="page-title-group">
+            <div class="page-eyebrow">Infrastructure as Code · AWS RDS</div>
+            <h1 class="page-title">Déploiement RDS<br>Base de données</h1>
+            <p class="page-subtitle">
+                Provisionnez une instance de base de données relationnelle (MySQL, PostgreSQL, MariaDB)
+                avec backups automatiques, Multi-AZ et sécurité intégrée.
+            </p>
+        </div>
+        <div class="region-chip">
+            <div class="chip chip-blue">🔵 AWS RDS</div>
+            <div class="chip chip-teal">⚡ Terraform 1.x</div>
+            <div class="chip chip-blue">🔄 GitHub Actions</div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <div class="card-header-icon">🗄️</div>
+            <div class="card-header-text">
+                <h3>Configuration de la base de données</h3>
+                <p>Renseignez les paramètres RDS</p>
+            </div>
+        </div>
+
+        <div class="card-body">
+            <div id="alertBanner" class="alert-banner error">
+                <span>⚠️</span>
+                <span id="alertText"></span>
+            </div>
+
+            <form method="post" action="/trigger-rds" id="rdsForm">
+
+                <div class="section-divider">
+                    <span class="section-divider-label">01 — Identification</span>
+                    <div class="section-divider-line"></div>
+                </div>
+
+                <div class="field-group">
+                    <label class="field-label" for="db_identifier">
+                        DB Identifier <span class="req">*</span>
+                    </label>
+                    <p class="field-hint">1-63 caractères · Minuscules, chiffres et tirets · Doit commencer par une lettre</p>
+                    <input
+                        type="text"
+                        id="db_identifier"
+                        name="db_identifier"
+                        placeholder="ex: db-prod-mysql"
+                        required
+                        maxlength="63"
+                        pattern="^[a-z][a-z0-9\-]*$"
+                    >
+                    <div class="validation-msg" id="identifierValidation"></div>
+                </div>
+
+                <div class="field-group">
+                    <label class="field-label" for="environment">
+                        Environnement <span class="req">*</span>
+                    </label>
+                    <div class="select-wrapper">
+                        <select id="environment" name="environment" required>
+                            <option value="">— Choisir l'environnement —</option>
+                            <option value="dev">🔧 Développement</option>
+                            <option value="preprod">🧪 Préproduction</option>
+                            <option value="prod">🚀 Production</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="section-divider">
+                    <span class="section-divider-label">02 — Moteur de base de données</span>
+                    <div class="section-divider-line"></div>
+                </div>
+
+                <div class="field-group">
+                    <label class="field-label" for="engine">
+                        Moteur <span class="req">*</span>
+                    </label>
+                    <div class="select-wrapper">
+                        <select id="engine" name="engine" required>
+                            <option value="">— Choisir le moteur —</option>
+                            <option value="mysql">🐬 MySQL</option>
+                            <option value="postgres">🐘 PostgreSQL</option>
+                            <option value="mariadb">🦭 MariaDB</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="field-group">
+                    <label class="field-label" for="engine_version">
+                        Version <span class="req">*</span>
+                    </label>
+                    <div class="select-wrapper">
+                        <select id="engine_version" name="engine_version" required>
+                            <option value="">— Choisir d'abord le moteur —</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="field-group">
+                    <label class="field-label" for="instance_class">
+                        Classe d'instance <span class="req">*</span>
+                    </label>
+                    <p class="field-hint">db.t3.micro est éligible au Free Tier (750h/mois la 1ère année)</p>
+                    <div class="select-wrapper">
+                        <select id="instance_class" name="instance_class" required>
+                            <option value="">— Choisir la classe —</option>
+                            <option value="db.t3.micro">💻 db.t3.micro (2 vCPU, 1 GB RAM) - Free Tier</option>
+                            <option value="db.t3.small">💻 db.t3.small (2 vCPU, 2 GB RAM)</option>
+                            <option value="db.t3.medium">💻 db.t3.medium (2 vCPU, 4 GB RAM)</option>
+                            <option value="db.m5.large">🖥️ db.m5.large (2 vCPU, 8 GB RAM)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="section-divider">
+                    <span class="section-divider-label">03 — Stockage</span>
+                    <div class="section-divider-line"></div>
+                </div>
+
+                <div class="field-group">
+                    <label class="field-label" for="allocated_storage">
+                        Stockage alloué (GB) <span class="req">*</span>
+                    </label>
+                    <p class="field-hint">20-65536 GB · SSD gp3 recommandé</p>
+                    <input
+                        type="number"
+                        id="allocated_storage"
+                        name="allocated_storage"
+                        min="20"
+                        max="65536"
+                        value="20"
+                        required
+                    >
+                </div>
+
+                <div class="section-divider">
+                    <span class="section-divider-label">04 — Credentials</span>
+                    <div class="section-divider-line"></div>
+                </div>
+
+                <div class="field-group">
+                    <label class="field-label" for="db_name">
+                        Nom de la base de données
+                    </label>
+                    <p class="field-hint">Optionnel · Nom de la base initiale à créer</p>
+                    <input
+                        type="text"
+                        id="db_name"
+                        name="db_name"
+                        placeholder="ex: myapp_db"
+                    >
+                </div>
+
+                <div class="field-group">
+                    <label class="field-label" for="username">
+                        Master Username <span class="req">*</span>
+                    </label>
+                    <p class="field-hint">3-16 caractères · Lettres et chiffres uniquement</p>
+                    <input
+                        type="text"
+                        id="username"
+                        name="username"
+                        placeholder="ex: admin"
+                        required
+                        minlength="3"
+                        maxlength="16"
+                        pattern="[a-zA-Z][a-zA-Z0-9]*"
+                    >
+                </div>
+
+                <div class="field-group">
+                    <label class="field-label" for="password">
+                        Master Password <span class="req">*</span>
+                    </label>
+                    <p class="field-hint">Min 8 caractères · Lettres, chiffres et caractères spéciaux</p>
+                    <input
+                        type="password"
+                        id="password"
+                        name="password"
+                        placeholder="••••••••"
+                        required
+                        minlength="8"
+                    >
+                    <button type="button" class="password-gen-btn" onclick="generatePassword()">🔑 Générer un mot de passe sécurisé</button>
+                </div>
+
+                <div class="section-divider">
+                    <span class="section-divider-label">05 — Options avancées</span>
+                    <div class="section-divider-line"></div>
+                </div>
+
+                <div class="toggle-row" for="multi_az">
+                    <div class="toggle-info">
+                        <strong>Multi-AZ Deployment</strong>
+                        <span>Haute disponibilité avec réplication synchrone dans 2 zones</span>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="multi_az" name="multi_az">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+
+                <div class="field-group">
+                    <label class="field-label" for="backup_retention">
+                        Rétention des backups (jours)
+                    </label>
+                    <p class="field-hint">0 = désactivé · 1-35 jours (7 recommandé en prod)</p>
+                    <input
+                        type="number"
+                        id="backup_retention"
+                        name="backup_retention"
+                        min="0"
+                        max="35"
+                        value="7"
+                    >
+                </div>
+
+                <div style="margin-top: 32px">
+                    <button type="submit" class="btn-primary" id="submitBtn">
+                        <span class="spinner" id="spinner"></span>
+                        <span id="btnText">🗄️ Créer la base de données</span>
+                    </button>
+                </div>
+
+                <p style="text-align:center; margin-top:12px; font-size:11px; color: var(--gray-300); font-family:'Space Mono',monospace;">
+                    ⏱️ Le déploiement RDS prend environ 5–10 minutes
+                </p>
+
+            </form>
+        </div>
+    </div>
+
+    <div class="side-panel">
+
+        <div class="info-panel">
+            <div class="info-panel-header">🏗️ Ressources Terraform créées</div>
+            <div class="resource-list">
+                <div class="resource-item">
+                    <div class="resource-icon">🗄️</div>
+                    <div>
+                        <div class="resource-name">aws_db_instance</div>
+                        <div class="resource-type">INSTANCE RDS</div>
+                    </div>
+                </div>
+                <div class="resource-item">
+                    <div class="resource-icon">🔒</div>
+                    <div>
+                        <div class="resource-name">aws_security_group</div>
+                        <div class="resource-type">PARE-FEU DB</div>
+                    </div>
+                </div>
+                <div class="resource-item">
+                    <div class="resource-icon">🌐</div>
+                    <div>
+                        <div class="resource-name">aws_db_subnet_group</div>
+                        <div class="resource-type">GROUPE DE SUBNETS</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="info-panel">
+            <div class="info-panel-header">💡 Informations importantes</div>
+            <div class="info-item">
+                <div class="info-item-icon">🔐</div>
+                <div>
+                    <div class="info-item-title">Sécurité du mot de passe</div>
+                    <div class="info-item-desc">Utilisez un mot de passe fort avec majuscules, minuscules, chiffres et caractères spéciaux. Ne le committez JAMAIS dans Git.</div>
+                </div>
+            </div>
+            <div class="info-item">
+                <div class="info-item-icon">💰</div>
+                <div>
+                    <div class="info-item-title">Coûts</div>
+                    <div class="info-item-desc">db.t3.micro : ~$15/mois (750h gratuites la 1ère année). Multi-AZ double le coût. Stockage : $0.115/GB/mois.</div>
+                </div>
+            </div>
+            <div class="info-item">
+                <div class="info-item-icon">📦</div>
+                <div>
+                    <div class="info-item-title">Backups automatiques</div>
+                    <div class="info-item-desc">Les snapshots automatiques sont conservés selon la période de rétention configurée. Les snapshots manuels persistent indéfiniment.</div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <p class="footer-note">
+        PROJET IAC SONATEL · RDS Deployer · Terraform + GitHub Actions
+    </p>
+
+</main>
+
+<script>
+    const engineSelect = document.getElementById('engine');
+    const versionSelect = document.getElementById('engine_version');
+    const identifierInput = document.getElementById('db_identifier');
+    const identifierValidation = document.getElementById('identifierValidation');
+    const form = document.getElementById('rdsForm');
+    const submitBtn = document.getElementById('submitBtn');
+    const spinner = document.getElementById('spinner');
+    const btnText = document.getElementById('btnText');
+    const alert = document.getElementById('alertBanner');
+    const alertText = document.getElementById('alertText');
+
+    const versions = {
+        mysql: ['8.0.35', '8.0.33', '5.7.44'],
+        postgres: ['15.4', '15.3', '14.9', '13.12'],
+        mariadb: ['10.11.5', '10.6.14', '10.5.21']
+    };
+
+    engineSelect.addEventListener('change', () => {
+        const engine = engineSelect.value;
+        versionSelect.innerHTML = '<option value="">— Choisir la version —</option>';
+        
+        if (engine && versions[engine]) {
+            versions[engine].forEach(v => {
+                const opt = document.createElement('option');
+                opt.value = v;
+                opt.textContent = v;
+                versionSelect.appendChild(opt);
+            });
+            versionSelect.disabled = false;
+        } else {
+            versionSelect.disabled = true;
+        }
+    });
+
+    identifierInput.addEventListener('input', () => {
+        const val = identifierInput.value;
+        if (!val) {
+            identifierValidation.textContent = '';
+            identifierValidation.className = 'validation-msg';
+            return;
+        }
+        
+        if (!/^[a-z][a-z0-9\-]*$/.test(val)) {
+            identifierValidation.textContent = '❌ Doit commencer par une lettre minuscule et ne contenir que a-z, 0-9, -';
+            identifierValidation.className = 'validation-msg error';
+            identifierInput.classList.add('error-field');
+        } else if (val.length > 63) {
+            identifierValidation.textContent = '❌ Maximum 63 caractères';
+            identifierValidation.className = 'validation-msg error';
+            identifierInput.classList.add('error-field');
+        } else {
+            identifierValidation.textContent = '✅ Identifier valide';
+            identifierValidation.className = 'validation-msg success';
+            identifierInput.classList.remove('error-field');
+        }
+    });
+
+    function generatePassword() {
+        const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*';
+        let pwd = '';
+        for (let i = 0; i < 16; i++) {
+            pwd += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        document.getElementById('password').value = pwd;
+        document.getElementById('password').type = 'text';
+        setTimeout(() => {
+            if (confirm('Mot de passe généré ! Voulez-vous le copier dans le presse-papier ?')) {
+                navigator.clipboard.writeText(pwd);
+                alert('Mot de passe copié !');
+            }
+        }, 100);
+    }
+
+    function showAlert(msg) {
+        alertText.textContent = msg;
+        alert.style.display = 'flex';
+        alert.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    function hideAlert() {
+        alert.style.display = 'none';
+    }
+
+    form.addEventListener('submit', function(e) {
+        hideAlert();
+
+        const dbIdentifier = identifierInput.value.trim();
+        const engine = engineSelect.value;
+        const engineVersion = versionSelect.value;
+        const instanceClass = document.getElementById('instance_class').value;
+        const username = document.getElementById('username').value.trim();
+        const password = document.getElementById('password').value;
+        const environment = document.getElementById('environment').value;
+
+        if (!/^[a-z][a-z0-9\-]*$/.test(dbIdentifier)) {
+            e.preventDefault();
+            showAlert('DB Identifier invalide');
+            identifierInput.focus();
+            return false;
+        }
+
+        if (!engine || !engineVersion || !instanceClass) {
+            e.preventDefault();
+            showAlert('Veuillez remplir tous les champs obligatoires');
+            return false;
+        }
+
+        if (!username || username.length < 3) {
+            e.preventDefault();
+            showAlert('Username doit contenir au moins 3 caractères');
+            document.getElementById('username').focus();
+            return false;
+        }
+
+        if (!password || password.length < 8) {
+            e.preventDefault();
+            showAlert('Le mot de passe doit contenir au moins 8 caractères');
+            document.getElementById('password').focus();
+            return false;
+        }
+
+        if (environment === 'prod') {
+            if (!confirm('⚠️ Vous allez créer une base de données en PRODUCTION. Confirmez-vous ?')) {
+                e.preventDefault();
+                return false;
+            }
+        }
+
+        spinner.style.display = 'block';
+        btnText.textContent = 'Pipeline en cours...';
+        submitBtn.disabled = true;
+    });
+
+    document.querySelectorAll('.toggle-row').forEach(row => {
+        row.addEventListener('click', e => {
+            if (e.target.tagName === 'INPUT') return;
+            const cb = row.querySelector('input[type="checkbox"]');
+            if (cb) cb.checked = !cb.checked;
+        });
+    });
+</script>
+</body>
+</html>

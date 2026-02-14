@@ -1,0 +1,87 @@
+# ═══════════════════════════════════════════════════════════════
+# terraform-lambda.yml
+# ═══════════════════════════════════════════════════════════════
+
+name: Terraform Lambda Deployment
+
+on:
+  workflow_dispatch:
+    inputs:
+      function_name:
+        description: 'Nom de la fonction'
+        required: true
+        type: string
+      runtime:
+        description: 'Runtime'
+        required: true
+        type: choice
+        options:
+          - python3.11
+          - python3.10
+          - python3.9
+          - nodejs20.x
+          - nodejs18.x
+      handler:
+        description: 'Handler'
+        required: true
+        type: string
+        default: 'lambda_function.lambda_handler'
+      memory_size:
+        description: 'Mémoire (MB)'
+        required: true
+        type: number
+        default: 512
+      timeout:
+        description: 'Timeout (secondes)'
+        required: true
+        type: number
+        default: 30
+      environment:
+        description: 'Environnement'
+        required: true
+        type: choice
+        options:
+          - dev
+          - preprod
+          - prod
+
+env:
+  AWS_REGION: 'eu-west-3'
+  TF_VERSION: '1.6.0'
+
+jobs:
+  terraform:
+    name: Deploy Lambda Function
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./infra/lambda
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Terraform Init
+        run: terraform init
+
+      - name: Terraform Apply
+        run: |
+          terraform apply -auto-approve \
+            -var="function_name=${{ github.event.inputs.function_name }}" \
+            -var="runtime=${{ github.event.inputs.runtime }}" \
+            -var="handler=${{ github.event.inputs.handler }}" \
+            -var="memory_size=${{ github.event.inputs.memory_size }}" \
+            -var="timeout=${{ github.event.inputs.timeout }}" \
+            -var="environment=${{ github.event.inputs.environment }}"

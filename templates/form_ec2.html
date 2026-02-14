@@ -1,0 +1,1005 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SONATEL IAC — Déploiement EC2</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Sora:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --navy-900: #060d1f;
+            --navy-800: #0a1628;
+            --navy-700: #0f2044;
+            --orange:   #f97316;
+            --orange-dim:#c2410c;
+            --teal:     #0ea5e9;
+            --green:    #22c55e;
+            --red:      #ef4444;
+            --white:    #f8fafc;
+            --gray-300: #94a3b8;
+            --gray-200: #cbd5e1;
+            --card-bg:  rgba(10, 22, 40, 0.92);
+            --border:   rgba(249, 115, 22, 0.18);
+            --glow-orange:0 0 24px rgba(249,115,22,0.25);
+            --radius:   14px;
+            --radius-sm:8px;
+        }
+
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        html { scroll-behavior: smooth; }
+
+        body {
+            font-family: 'Sora', sans-serif;
+            background-color: var(--navy-900);
+            color: var(--white);
+            min-height: 100vh;
+            overflow-x: hidden;
+            position: relative;
+            zoom: 0.8;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background-image:
+                linear-gradient(rgba(249,115,22,0.04) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(249,115,22,0.04) 1px, transparent 1px);
+            background-size: 48px 48px;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        body::after {
+            content: '';
+            position: fixed;
+            width: 600px; height: 600px;
+            background: radial-gradient(circle, rgba(249,115,22,0.07) 0%, transparent 70%);
+            top: -150px; right: -150px;
+            pointer-events: none;
+            z-index: 0;
+            animation: orbFloat 10s ease-in-out infinite alternate;
+        }
+
+        @keyframes orbFloat {
+            from { transform: translate(0,0) scale(1); }
+            to   { transform: translate(-30px, 40px) scale(1.1); }
+        }
+
+        .orb-left {
+            position: fixed;
+            width: 500px; height: 500px;
+            background: radial-gradient(circle, rgba(14,165,233,0.08) 0%, transparent 70%);
+            bottom: -100px; left: -100px;
+            pointer-events: none;
+            z-index: 0;
+            animation: orbFloat 13s ease-in-out infinite alternate-reverse;
+        }
+
+        .topbar {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: rgba(6,13,31,0.85);
+            backdrop-filter: blur(16px);
+            border-bottom: 1px solid var(--border);
+            padding: 0 32px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .topbar-brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-family: 'Space Mono', monospace;
+            font-size: 13px;
+            letter-spacing: 0.05em;
+        }
+
+        .topbar-logo {
+            width: 32px; height: 32px;
+            background: linear-gradient(135deg, var(--orange), var(--teal));
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+        }
+
+        .topbar-brand span { color: var(--gray-300); }
+        .topbar-brand strong { color: var(--white); }
+
+        .topbar-right {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .status-dot {
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            background: var(--green);
+            box-shadow: 0 0 8px var(--green);
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50%       { opacity: 0.4; }
+        }
+
+        .topbar-service {
+            font-family: 'Space Mono', monospace;
+            font-size: 11px;
+            color: var(--gray-300);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn-back {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            background: rgba(249,115,22,0.1);
+            border: 1px solid rgba(249,115,22,0.3);
+            border-radius: 8px;
+            color: var(--orange);
+            text-decoration: none;
+            font-size: 12px;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+        .btn-back:hover { background: rgba(249,115,22,0.15); }
+
+        .page-wrapper {
+            position: relative;
+            z-index: 1;
+            max-width: 1180px;
+            margin: 0 auto;
+            padding: 48px 24px 80px;
+            display: grid;
+            grid-template-columns: 1fr 380px;
+            gap: 32px;
+            align-items: start;
+        }
+
+        .page-header {
+            grid-column: 1 / -1;
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 24px;
+            margin-bottom: 8px;
+        }
+
+        .page-title-group { flex: 1; }
+
+        .page-eyebrow {
+            font-family: 'Space Mono', monospace;
+            font-size: 11px;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            color: var(--orange);
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .page-eyebrow::before {
+            content: '';
+            width: 24px; height: 2px;
+            background: var(--orange);
+        }
+
+        .page-title {
+            font-size: 36px;
+            font-weight: 800;
+            line-height: 1.1;
+            letter-spacing: -0.02em;
+            background: linear-gradient(135deg, var(--white) 30%, var(--orange));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .page-subtitle {
+            margin-top: 12px;
+            color: var(--gray-300);
+            font-size: 15px;
+            font-weight: 300;
+            line-height: 1.6;
+            max-width: 520px;
+        }
+
+        .region-chip {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 6px;
+            flex-shrink: 0;
+        }
+
+        .chip {
+            font-family: 'Space Mono', monospace;
+            font-size: 11px;
+            padding: 5px 12px;
+            border-radius: 100px;
+            border: 1px solid;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .chip-orange {
+            color: var(--orange);
+            border-color: rgba(249,115,22,0.4);
+            background: rgba(249,115,22,0.07);
+        }
+
+        .chip-teal {
+            color: var(--teal);
+            border-color: rgba(14,165,233,0.35);
+            background: rgba(14,165,233,0.07);
+        }
+
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            overflow: hidden;
+            backdrop-filter: blur(12px);
+        }
+
+        .card-header {
+            padding: 24px 32px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .card-header-icon {
+            width: 40px; height: 40px;
+            border-radius: 10px;
+            background: linear-gradient(135deg, rgba(249,115,22,0.2), rgba(249,115,22,0.05));
+            border: 1px solid rgba(249,115,22,0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            flex-shrink: 0;
+        }
+
+        .card-header-text h3 {
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--white);
+            margin-bottom: 2px;
+        }
+
+        .card-header-text p {
+            font-size: 12px;
+            color: var(--gray-300);
+        }
+
+        .card-body { padding: 32px; }
+
+        .section-divider {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin: 8px 0 24px;
+        }
+
+        .section-divider-label {
+            font-family: 'Space Mono', monospace;
+            font-size: 10px;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: var(--gray-300);
+            white-space: nowrap;
+        }
+
+        .section-divider-line {
+            flex: 1;
+            height: 1px;
+            background: var(--border);
+        }
+
+        .field-group { margin-bottom: 24px; }
+
+        .field-label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--gray-200);
+        }
+
+        .field-label .req {
+            color: var(--orange);
+            font-size: 16px;
+            line-height: 1;
+        }
+
+        .field-hint {
+            font-size: 11px;
+            color: var(--gray-300);
+            margin-bottom: 8px;
+            font-weight: 300;
+            font-style: italic;
+        }
+
+        input[type="text"],
+        select {
+            width: 100%;
+            background: rgba(15, 32, 68, 0.6);
+            border: 1.5px solid rgba(249,115,22,0.2);
+            color: var(--white);
+            border-radius: var(--radius-sm);
+            padding: 13px 16px;
+            font-family: 'Sora', sans-serif;
+            font-size: 14px;
+            transition: border-color 0.25s, box-shadow 0.25s, background 0.25s;
+            appearance: none;
+            -webkit-appearance: none;
+            outline: none;
+        }
+
+        input::placeholder { color: rgba(148,163,184,0.5); }
+
+        input:focus,
+        select:focus {
+            border-color: var(--orange);
+            background: rgba(15, 32, 68, 0.9);
+            box-shadow: var(--glow-orange);
+        }
+
+        input.error-field { border-color: var(--red) !important; }
+
+        .select-wrapper {
+            position: relative;
+        }
+        .select-wrapper::after {
+            content: '▾';
+            position: absolute;
+            right: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--orange);
+            pointer-events: none;
+            font-size: 14px;
+        }
+        .select-wrapper select { padding-right: 36px; cursor: pointer; }
+        select option {
+            background: var(--navy-800);
+            color: var(--white);
+        }
+
+        .input-counter {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 6px;
+        }
+        .char-count {
+            font-family: 'Space Mono', monospace;
+            font-size: 10px;
+            color: var(--gray-300);
+        }
+
+        .validation-msg {
+            font-size: 11px;
+            margin-top: 5px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            min-height: 16px;
+        }
+        .validation-msg.error { color: #f87171; }
+        .validation-msg.success { color: var(--green); }
+
+        .btn-primary {
+            width: 100%;
+            padding: 17px;
+            background: linear-gradient(135deg, var(--orange) 0%, #ea580c 100%);
+            border: none;
+            border-radius: 10px;
+            color: var(--navy-900);
+            font-family: 'Sora', sans-serif;
+            font-size: 15px;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+        .btn-primary::before {
+            content: '';
+            position: absolute;
+            top: -50%; left: -60%;
+            width: 200%; height: 200%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
+            transform: rotate(30deg) translateX(-100%);
+            transition: transform 0.6s;
+        }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 16px 40px rgba(249,115,22,0.4);
+        }
+        .btn-primary:hover::before { transform: rotate(30deg) translateX(200%); }
+        .btn-primary:active { transform: translateY(0); }
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+        .spinner {
+            width: 18px; height: 18px;
+            border: 2px solid rgba(6,13,31,0.3);
+            border-top-color: var(--navy-900);
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+            display: none;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .side-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .info-panel {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            overflow: hidden;
+        }
+
+        .info-panel-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border);
+            font-size: 12px;
+            font-family: 'Space Mono', monospace;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--orange);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .info-item {
+            padding: 14px 20px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            gap: 12px;
+            align-items: flex-start;
+        }
+        .info-item:last-child { border-bottom: none; }
+
+        .info-item-icon {
+            font-size: 18px;
+            flex-shrink: 0;
+            margin-top: 1px;
+        }
+
+        .info-item-title {
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--white);
+            margin-bottom: 3px;
+        }
+        .info-item-desc {
+            font-size: 11px;
+            color: var(--gray-300);
+            line-height: 1.5;
+        }
+
+        .resource-list { padding: 16px 20px; }
+
+        .resource-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 0;
+            border-bottom: 1px solid var(--border);
+            font-size: 12px;
+        }
+        .resource-item:last-child { border-bottom: none; }
+
+        .resource-icon {
+            width: 28px; height: 28px;
+            border-radius: 6px;
+            background: rgba(249,115,22,0.12);
+            border: 1px solid rgba(249,115,22,0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            flex-shrink: 0;
+        }
+
+        .resource-name { font-weight: 600; color: var(--white); margin-bottom: 1px; }
+        .resource-type { color: var(--gray-300); font-size: 10px; font-family: 'Space Mono', monospace; }
+
+        .alert-banner {
+            display: none;
+            padding: 12px 16px;
+            border-radius: var(--radius-sm);
+            font-size: 13px;
+            margin-bottom: 24px;
+            align-items: flex-start;
+            gap: 10px;
+        }
+        .alert-banner.error {
+            background: rgba(239,68,68,0.1);
+            border: 1px solid rgba(239,68,68,0.3);
+            color: #fca5a5;
+            display: flex;
+        }
+
+        @media (max-width: 900px) {
+            .page-wrapper {
+                grid-template-columns: 1fr;
+                padding: 32px 16px 60px;
+            }
+            .page-header { flex-direction: column; gap: 16px; }
+        }
+
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .card { animation: fadeInUp 0.5s ease-out both; }
+        .side-panel > * { animation: fadeInUp 0.5s ease-out both; }
+        .side-panel > *:nth-child(2) { animation-delay: 0.08s; }
+        .side-panel > *:nth-child(3) { animation-delay: 0.16s; }
+
+        .footer-note {
+            grid-column: 1 / -1;
+            text-align: center;
+            font-size: 11px;
+            color: var(--gray-300);
+            margin-top: 8px;
+            font-family: 'Space Mono', monospace;
+        }
+    </style>
+</head>
+<body>
+<div class="orb-left"></div>
+
+<header class="topbar">
+    <div class="topbar-brand">
+        <div class="topbar-logo">🖥️</div>
+        <span>PROJET IAC</span> <strong>SONATEL</strong>
+    </div>
+    <div class="topbar-right">
+        <a href="/" class="btn-back">← Tous les services</a>
+        <div class="topbar-service">
+            <div class="status-dot"></div>
+            Services opérationnels
+        </div>
+        <div class="chip chip-orange">
+            🌍 eu-north-1 · Stockholm
+        </div>
+    </div>
+</header>
+
+<main class="page-wrapper">
+
+    <div class="page-header">
+        <div class="page-title-group">
+            <div class="page-eyebrow">Infrastructure as Code · AWS EC2</div>
+            <h1 class="page-title">Déploiement EC2<br>Serveur Virtuel</h1>
+            <p class="page-subtitle">
+                Créez une instance EC2 avec security group configuré, réseau VPC par défaut,
+                et accès SSH/HTTP/HTTPS automatisé via GitHub Actions.
+            </p>
+        </div>
+        <div class="region-chip">
+            <div class="chip chip-orange">🔵 AWS EC2</div>
+            <div class="chip chip-teal">⚡ Terraform 1.x</div>
+            <div class="chip chip-orange">🔄 GitHub Actions</div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <div class="card-header-icon">🖥️</div>
+            <div class="card-header-text">
+                <h3>Configuration de l'instance EC2</h3>
+                <p>Renseignez les propriétés du serveur virtuel</p>
+            </div>
+        </div>
+
+        <div class="card-body">
+            <div id="alertBanner" class="alert-banner error">
+                <span>⚠️</span>
+                <span id="alertText"></span>
+            </div>
+
+            <form method="post" action="/trigger-ec2" id="ec2Form">
+
+                <div class="section-divider">
+                    <span class="section-divider-label">01 — Identification</span>
+                    <div class="section-divider-line"></div>
+                </div>
+
+                <div class="field-group">
+                    <div class="input-counter">
+                        <label class="field-label" for="instance_name" style="margin-bottom:0">
+                            Nom de l'instance
+                            <span class="req">*</span>
+                        </label>
+                        <span class="char-count" id="nameCharCount">0 / 50</span>
+                    </div>
+                    <p class="field-hint">
+                        1-50 caractères · Lettres, chiffres, tirets et underscores uniquement
+                    </p>
+                    <input
+                        type="text"
+                        id="instance_name"
+                        name="instance_name"
+                        placeholder="ex: serveur-web-prod"
+                        required
+                        maxlength="50"
+                        pattern="[a-zA-Z0-9_-]+"
+                        title="Lettres, chiffres, tirets et underscores uniquement"
+                    >
+                    <div class="validation-msg" id="nameValidation"></div>
+                </div>
+
+                <div class="field-group">
+                    <label class="field-label" for="instance_env">
+                        Environnement <span class="req">*</span>
+                    </label>
+                    <p class="field-hint">Détermine le tagging Terraform et les politiques appliquées</p>
+                    <div class="select-wrapper">
+                        <select id="instance_env" name="instance_env" required>
+                            <option value="">— Choisir l'environnement —</option>
+                            <option value="dev">🔧 Développement</option>
+                            <option value="preprod">🧪 Préproduction</option>
+                            <option value="prod">🚀 Production</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="section-divider">
+                    <span class="section-divider-label">02 — Configuration système</span>
+                    <div class="section-divider-line"></div>
+                </div>
+
+                <div class="field-group">
+                    <label class="field-label" for="aws_region">
+                        Région AWS <span class="req">*</span>
+                    </label>
+                    <p class="field-hint">Région géographique où l'instance sera déployée</p>
+                    <div class="select-wrapper">
+                        <select id="aws_region" name="aws_region" required>
+                            <option value="">— Choisir la région —</option>
+                            <option value="eu-north-1" selected>🇸🇪 EU North 1 (Stockholm)</option>
+                            <option value="eu-west-3">🇫🇷 EU West 3 (Paris)</option>
+                            <option value="eu-west-1">🇮🇪 EU West 1 (Ireland)</option>
+                            <option value="eu-central-1">🇩🇪 EU Central 1 (Frankfurt)</option>
+                            <option value="us-east-1">🇺🇸 US East 1 (N. Virginia)</option>
+                            <option value="us-west-2">🇺🇸 US West 2 (Oregon)</option>
+                            <option value="ap-southeast-1">🇸🇬 AP Southeast 1 (Singapore)</option>
+                            <option value="ap-northeast-1">🇯🇵 AP Northeast 1 (Tokyo)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="field-group">
+                    <label class="field-label" for="instance_os">
+                        Système d'exploitation <span class="req">*</span>
+                    </label>
+                    <p class="field-hint">Image AMI correspondant à la région sélectionnée</p>
+                    <div class="select-wrapper">
+                        <select id="instance_os" name="instance_os" required>
+                            <option value="">— Choisir une image —</option>
+                            <option value="ami-0fe8bec493a81c7da">🐧 Amazon Linux 2023 (Recommandé)</option>
+                            <option value="ami-0705384c0b33c194c">🐧 Ubuntu 22.04 LTS</option>
+                            <option value="ami-064087b8d355e70c1">🐧 Debian 12</option>
+                        </select>
+                    </div>
+                    <div class="validation-msg" id="osValidation"></div>
+                </div>
+
+                <div class="field-group">
+                    <label class="field-label" for="instance_size">
+                        Taille de l'instance <span class="req">*</span>
+                    </label>
+                    <p class="field-hint">Configuration vCPU et RAM — t3.micro est éligible au Free Tier</p>
+                    <div class="select-wrapper">
+                        <select id="instance_size" name="instance_size" required>
+                            <option value="">— Choisir la taille —</option>
+                            <option value="t3.micro">💻 t3.micro (1 vCPU, 1 GB RAM) - Free Tier</option>
+                            <option value="t3.small">💻 t3.small (2 vCPU, 2 GB RAM)</option>
+                            <option value="t3.medium">💻 t3.medium (2 vCPU, 4 GB RAM)</option>
+                            <option value="t2.micro">💻 t2.micro (1 vCPU, 1 GB RAM) - Free Tier</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div style="margin-top: 32px">
+                    <button type="submit" class="btn-primary" id="submitBtn">
+                        <span class="spinner" id="spinner"></span>
+                        <span id="btnText">🖥️ Lancer l'instance EC2</span>
+                    </button>
+                </div>
+
+                <p style="text-align:center; margin-top:12px; font-size:11px; color: var(--gray-300); font-family:'Space Mono',monospace;">
+                    ⏱️ Le pipeline GitHub Actions prend environ 2–3 minutes
+                </p>
+
+            </form>
+        </div>
+    </div>
+
+    <div class="side-panel">
+
+        <div class="info-panel">
+            <div class="info-panel-header">🏗️ Ressources Terraform créées</div>
+            <div class="resource-list">
+                <div class="resource-item">
+                    <div class="resource-icon">🖥️</div>
+                    <div>
+                        <div class="resource-name">aws_instance</div>
+                        <div class="resource-type">INSTANCE EC2</div>
+                    </div>
+                </div>
+                <div class="resource-item">
+                    <div class="resource-icon">🔒</div>
+                    <div>
+                        <div class="resource-name">aws_security_group</div>
+                        <div class="resource-type">PARE-FEU</div>
+                    </div>
+                </div>
+                <div class="resource-item">
+                    <div class="resource-icon">🌐</div>
+                    <div>
+                        <div class="resource-name">data.aws_vpc.default</div>
+                        <div class="resource-type">VPC PAR DÉFAUT</div>
+                    </div>
+                </div>
+                <div class="resource-item">
+                    <div class="resource-icon">🔗</div>
+                    <div>
+                        <div class="resource-name">data.aws_subnets.default</div>
+                        <div class="resource-type">SUBNETS</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="info-panel">
+            <div class="info-panel-header">🔐 Security Group — Règles</div>
+            <div class="info-item">
+                <div class="info-item-icon">🔓</div>
+                <div>
+                    <div class="info-item-title">SSH (Port 22)</div>
+                    <div class="info-item-desc">Accès terminal distant depuis 0.0.0.0/0</div>
+                </div>
+            </div>
+            <div class="info-item">
+                <div class="info-item-icon">🌐</div>
+                <div>
+                    <div class="info-item-title">HTTP (Port 80)</div>
+                    <div class="info-item-desc">Serveur web non chiffré</div>
+                </div>
+            </div>
+            <div class="info-item">
+                <div class="info-item-icon">🔒</div>
+                <div>
+                    <div class="info-item-title">HTTPS (Port 443)</div>
+                    <div class="info-item-desc">Serveur web sécurisé SSL/TLS</div>
+                </div>
+            </div>
+            <div class="info-item">
+                <div class="info-item-icon">📤</div>
+                <div>
+                    <div class="info-item-title">Egress (Sortant)</div>
+                    <div class="info-item-desc">Tout le trafic sortant autorisé</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="info-panel">
+            <div class="info-panel-header">💡 Informations importantes</div>
+            <div class="info-item">
+                <div class="info-item-icon">🔑</div>
+                <div>
+                    <div class="info-item-title">Accès SSH</div>
+                    <div class="info-item-desc">Vous devrez créer une Key Pair dans la console AWS et télécharger le fichier .pem pour vous connecter via SSH.</div>
+                </div>
+            </div>
+            <div class="info-item">
+                <div class="info-item-icon">💰</div>
+                <div>
+                    <div class="info-item-title">Free Tier</div>
+                    <div class="info-item-desc">Les instances t3.micro et t2.micro bénéficient de 750 heures/mois gratuites la première année.</div>
+                </div>
+            </div>
+            <div class="info-item">
+                <div class="info-item-icon">🏷️</div>
+                <div>
+                    <div class="info-item-title">Tags automatiques</div>
+                    <div class="info-item-desc">Chaque ressource reçoit les tags Environment, ManagedBy: Terraform et Project: Sonatel-IAC.</div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <p class="footer-note">
+        PROJET IAC SONATEL · EC2 Deployer · Terraform + GitHub Actions · AWS eu-north-1
+    </p>
+
+</main>
+
+<script>
+    const nameInput       = document.getElementById('instance_name');
+    const nameCharCount   = document.getElementById('nameCharCount');
+    const nameValidation  = document.getElementById('nameValidation');
+    const osSelect        = document.getElementById('instance_os');
+    const osValidation    = document.getElementById('osValidation');
+    const form            = document.getElementById('ec2Form');
+    const submitBtn       = document.getElementById('submitBtn');
+    const spinner         = document.getElementById('spinner');
+    const btnText         = document.getElementById('btnText');
+    const alert           = document.getElementById('alertBanner');
+    const alertText       = document.getElementById('alertText');
+
+    function validateName(name) {
+        if (!name) return { ok: false, msg: '' };
+        if (name.length < 1 || name.length > 50) return { ok: false, msg: '❌ Doit contenir entre 1 et 50 caractères' };
+        if (!/^[a-zA-Z0-9_-]+$/.test(name)) return { ok: false, msg: '❌ Caractères invalides (lettres, chiffres, - et _ uniquement)' };
+        return { ok: true, msg: '✅ Nom valide' };
+    }
+
+    function updateNameUI() {
+        const val = nameInput.value;
+        const len = val.length;
+        nameCharCount.textContent = `${len} / 50`;
+        nameCharCount.style.color = len > 45 ? 'var(--orange)' : 'var(--gray-300)';
+
+        const { ok, msg } = validateName(val);
+        nameValidation.textContent = msg;
+        nameValidation.className = `validation-msg ${ok ? 'success' : (msg ? 'error' : '')}`;
+        nameInput.classList.toggle('error-field', !ok && !!msg);
+    }
+
+    nameInput.addEventListener('input', updateNameUI);
+
+    osSelect.addEventListener('change', () => {
+        const val = osSelect.value;
+        if (val && val.startsWith('ami-')) {
+            osValidation.textContent = '✅ AMI valide';
+            osValidation.className = 'validation-msg success';
+        } else if (val) {
+            osValidation.textContent = '❌ AMI invalide';
+            osValidation.className = 'validation-msg error';
+        } else {
+            osValidation.textContent = '';
+            osValidation.className = 'validation-msg';
+        }
+    });
+
+    function showAlert(msg) {
+        alertText.textContent = msg;
+        alert.style.display = 'flex';
+        alert.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    function hideAlert() {
+        alert.style.display = 'none';
+    }
+
+    form.addEventListener('submit', function(e) {
+        hideAlert();
+
+        const instanceName = nameInput.value.trim();
+        const instanceOs   = osSelect.value.trim();
+        const instanceSize = document.getElementById('instance_size').value;
+        const instanceEnv  = document.getElementById('instance_env').value;
+
+        const { ok, msg } = validateName(instanceName);
+        if (!ok) {
+            e.preventDefault();
+            showAlert(`Nom invalide : ${msg}`);
+            nameInput.focus();
+            return false;
+        }
+
+        if (!instanceOs || !instanceOs.startsWith('ami-')) {
+            e.preventDefault();
+            showAlert("AMI invalide. Doit commencer par 'ami-'");
+            osSelect.focus();
+            return false;
+        }
+
+        if (!instanceSize) {
+            e.preventDefault();
+            showAlert("Veuillez sélectionner une taille d'instance.");
+            document.getElementById('instance_size').focus();
+            return false;
+        }
+
+        if (!instanceEnv) {
+            e.preventDefault();
+            showAlert("Veuillez sélectionner un environnement.");
+            document.getElementById('instance_env').focus();
+            return false;
+        }
+
+        if (instanceEnv === 'prod') {
+            if (!confirm('⚠️ Vous allez créer une instance en PRODUCTION. Confirmez-vous ?')) {
+                e.preventDefault();
+                return false;
+            }
+        }
+
+        spinner.style.display = 'block';
+        btnText.textContent = 'Pipeline en cours de déclenchement...';
+        submitBtn.disabled = true;
+    });
+
+    setTimeout(() => nameInput.focus(), 400);
+
+    // Ajouter dans la section <script>
+const regionSelect = document.getElementById('aws_region');
+
+// AMIs par région pour les OS courants
+const amiByRegion = {
+    'eu-north-1': {
+        'Amazon Linux 2023': 'ami-0c94855ba95c574c8',
+        'Ubuntu 22.04': 'ami-0014ce3e52359afbd',
+        'Debian 12': 'ami-0506d6d51f0ae83d7'
+    },
+    'eu-west-3': {
+        'Amazon Linux 2023': 'ami-0302f42a44bf53a45',
+        'Ubuntu 22.04': 'ami-0a0d8bc4b47f7c0c3',
+        'Debian 12': 'ami-0cb5f6c9935e9bcfd'
+    },
+    'eu-west-1': {
+        'Amazon Linux 2023': 'ami-0d71ea30463e0ff8d',
+        'Ubuntu 22.04': 'ami-0694d931cee176e7d',
+        'Debian 12': 'ami-0dcc0ebde7b2e00db'
+    },
+    // Ajouter les autres régions...
+};
+
+regionSelect.addEventListener('change', () => {
+    const region = regionSelect.value;
+    const currentOs = osSelect.value;
+    
+    if (region && amiByRegion[region]) {
+        // Mettre à jour les AMI selon la région
+        osSelect.innerHTML = '<option value="">— Choisir l\'OS —</option>';
+        for (const [os, ami] of Object.entries(amiByRegion[region])) {
+            const option = document.createElement('option');
+            option.value = ami;
+            option.textContent = os;
+            if (ami === currentOs) option.selected = true;
+            osSelect.appendChild(option);
+        }
+    }
+});
+</script>
+</body>
+</html>

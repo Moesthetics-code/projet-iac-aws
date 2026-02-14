@@ -1,0 +1,810 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SONATEL IAC — Déploiement Lambda</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Sora:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --navy-900: #060d1f;
+            --amber:    #f59e0b;
+            --teal:     #0ea5e9;
+            --green:    #22c55e;
+            --red:      #ef4444;
+            --white:    #f8fafc;
+            --gray-300: #94a3b8;
+            --card-bg:  rgba(10, 22, 40, 0.92);
+            --border:   rgba(245, 158, 11, 0.18);
+            --glow:     0 0 24px rgba(245,158,11,0.25);
+            --radius:   14px;
+        }
+
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Sora', sans-serif;
+            background: #060d1f;
+            color: #f8fafc;
+            min-height: 100vh;
+            zoom: 0.8;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background-image:
+                linear-gradient(rgba(245,158,11,0.04) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(245,158,11,0.04) 1px, transparent 1px);
+            background-size: 48px 48px;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .topbar {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: rgba(6,13,31,0.85);
+            backdrop-filter: blur(16px);
+            border-bottom: 1px solid var(--border);
+            padding: 0 32px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .topbar-brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-family: 'Space Mono', monospace;
+            font-size: 13px;
+        }
+
+        .topbar-logo {
+            width: 32px; height: 32px;
+            background: linear-gradient(135deg, var(--amber), var(--teal));
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .topbar-right {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .btn-back {
+            padding: 8px 16px;
+            background: rgba(245,158,11,0.1);
+            border: 1px solid rgba(245,158,11,0.3);
+            border-radius: 8px;
+            color: var(--amber);
+            text-decoration: none;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .status-dot {
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            background: var(--green);
+            box-shadow: 0 0 8px var(--green);
+            animation: pulse 2s infinite;
+        }
+
+                /* ── Main Layout ───────────────────────────────────────────── */
+        .page-wrapper {
+            position: relative;
+            z-index: 1;
+            max-width: 1180px;
+            margin: 0 auto;
+            padding: 48px 24px 80px;
+            display: grid;
+            grid-template-columns: 1fr 380px;
+            gap: 32px;
+            align-items: start;
+        }
+
+        /* ── Page Header ───────────────────────────────────────────── */
+        .page-header {
+            grid-column: 1 / -1;
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 24px;
+            margin-bottom: 8px;
+        }
+
+        .page-title-group { flex: 1; }
+
+        .page-eyebrow {
+            font-family: 'Space Mono', monospace;
+            font-size: 11px;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            color: var(--amber);
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .page-eyebrow::before {
+            content: '';
+            width: 24px; height: 2px;
+            background: var(--amber);
+        }
+
+        .page-title {
+            font-size: 36px;
+            font-weight: 800;
+            line-height: 1.1;
+            letter-spacing: -0.02em;
+            background: linear-gradient(135deg, var(--white) 30%, var(--teal));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .page-subtitle {
+            margin-top: 12px;
+            color: var(--gray-300);
+            font-size: 15px;
+            font-weight: 300;
+            line-height: 1.6;
+            max-width: 520px;
+        }
+
+        .region-chip {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 6px;
+            flex-shrink: 0;
+        }
+
+        .chip {
+            font-family: 'Space Mono', monospace;
+            font-size: 11px;
+            padding: 5px 12px;
+            border-radius: 100px;
+            border: 1px solid;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .chip-amber {
+            color: var(--amber);
+            border-color: rgba(245,158,11,0.4);
+            background: rgba(245,158,11,0.07);
+        }
+
+        .chip-teal {
+            color: var(--teal);
+            border-color: rgba(14,165,233,0.35);
+            background: rgba(14,165,233,0.07);
+        }
+
+        .topbar-service {
+            font-family: 'Space Mono', monospace;
+            font-size: 11px;
+            color: var(--gray-300);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            backdrop-filter: blur(12px);
+        }
+
+        .card-header {
+            padding: 24px 32px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            gap: 14px;
+        }
+
+        .card-header-icon {
+            width: 40px; height: 40px;
+            border-radius: 10px;
+            background: linear-gradient(135deg, rgba(245,158,11,0.2), rgba(245,158,11,0.05));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+        }
+
+        .card-body { padding: 32px; }
+
+        .section-divider {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin: 24px 0;
+        }
+
+        .section-divider-label {
+            font-family: 'Space Mono', monospace;
+            font-size: 10px;
+            text-transform: uppercase;
+            color: var(--gray-300);
+        }
+
+        .section-divider-line {
+            flex: 1;
+            height: 1px;
+            background: var(--border);
+        }
+
+        .field-group { margin-bottom: 24px; }
+
+        .field-label {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 8px;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .req { color: var(--amber); }
+
+        .field-hint {
+            font-size: 11px;
+            color: var(--gray-300);
+            margin-bottom: 8px;
+            font-style: italic;
+        }
+
+        input, select, textarea {
+            width: 100%;
+            background: rgba(15, 32, 68, 0.6);
+            border: 1.5px solid rgba(245,158,11,0.2);
+            color: var(--white);
+            border-radius: 8px;
+            padding: 13px 16px;
+            font-family: 'Sora', sans-serif;
+            font-size: 14px;
+            outline: none;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            border-color: var(--amber);
+            box-shadow: var(--glow);
+        }
+
+        .select-wrapper {
+            position: relative;
+        }
+        .select-wrapper::after {
+            content: '▾';
+            position: absolute;
+            right: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--amber);
+            pointer-events: none;
+        }
+
+        .slider-container {
+            padding: 16px;
+            background: rgba(15,32,68,0.5);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+        }
+
+        .slider-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 12px;
+        }
+
+        .slider-value {
+            font-family: 'Space Mono', monospace;
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--amber);
+        }
+
+        input[type="range"] {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: rgba(148,163,184,0.2);
+            padding: 0;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: var(--amber);
+            cursor: pointer;
+            box-shadow: 0 0 8px var(--amber);
+        }
+
+        .env-vars-container {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .env-var-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr auto;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .btn-remove {
+            padding: 10px;
+            background: rgba(239,68,68,0.1);
+            border: 1px solid rgba(239,68,68,0.3);
+            border-radius: 6px;
+            color: var(--red);
+            cursor: pointer;
+            font-size: 18px;
+        }
+
+        .btn-add {
+            padding: 10px 20px;
+            background: rgba(245,158,11,0.1);
+            border: 1px solid rgba(245,158,11,0.3);
+            border-radius: 6px;
+            color: var(--amber);
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+            margin-top: 8px;
+        }
+
+        .code-editor {
+            font-family: 'Space Mono', monospace;
+            font-size: 13px;
+            min-height: 200px;
+            resize: vertical;
+        }
+
+        .upload-zone {
+            border: 2px dashed rgba(245,158,11,0.25);
+            border-radius: 8px;
+            padding: 32px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            position: relative;
+        }
+
+        .upload-zone:hover {
+            border-color: var(--amber);
+            background: rgba(245,158,11,0.05);
+        }
+
+        .upload-zone input {
+            position: absolute;
+            inset: 0;
+            opacity: 0;
+            cursor: pointer;
+        }
+
+        .btn-primary {
+            width: 100%;
+            padding: 17px;
+            background: linear-gradient(135deg, var(--amber), #ea580c);
+            border: none;
+            border-radius: 10px;
+            color: #060d1f;
+            font-size: 15px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 16px 40px rgba(245,158,11,0.4);
+        }
+
+        .info-panel {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+        }
+
+        .info-panel-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border);
+            font-family: 'Space Mono', monospace;
+            font-size: 12px;
+            color: var(--amber);
+        }
+
+        .info-item {
+            padding: 14px 20px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .info-item:last-child { border-bottom: none; }
+
+        .resource-item {
+            display: flex;
+            gap: 10px;
+            padding: 10px 0;
+        }
+
+        .resource-icon {
+            width: 28px; height: 28px;
+            border-radius: 6px;
+            background: rgba(245,158,11,0.12);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .card { animation: fadeInUp 0.5s ease-out; }
+
+        @media (max-width: 900px) {
+            .page-wrapper { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+<header class="topbar">
+    <div class="topbar-brand">
+        <div class="topbar-logo">⚡</div>
+        <span>PROJET IAC</span> <strong>SONATEL</strong>
+    </div>
+    <div class="topbar-right">
+        <a href="/" class="btn-back">← Tous les services</a>
+        <div class="topbar-service">
+            <div class="status-dot"></div>
+            Services opérationnels
+        </div>
+    </div>
+</header>
+
+<main class="page-wrapper">
+
+    <!-- Header -->
+    <div class="page-header">
+        <div class="page-title-group">
+            <div class="page-eyebrow">Infrastructure as Code · AWS Lambda</div>
+            <h1 class="page-title">Déploiement Lambda<br>Fonction Serverless</h1>
+            <p class="page-subtitle">
+                Créez une fonction Lambda avec code source, variables d'environnement, et configuration des ressources.
+            </p>
+        </div>
+        <div class="region-chip">
+            <div class="chip chip-teal">🔵 AWS S3</div>
+            <div class="chip chip-amber">⚡ Terraform 1.x</div>
+            <div class="chip chip-teal">🔄 GitHub Actions</div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <div class="card-header-icon">⚡</div>
+            <div>
+                <h3 style="font-size: 16px; font-weight: 700;">Configuration Lambda</h3>
+                <p style="font-size: 12px; color: var(--gray-300);">Fonction serverless event-driven</p>
+            </div>
+        </div>
+
+        <div class="card-body">
+            <form method="post" action="/trigger-lambda" id="lambdaForm">
+
+                <div class="section-divider">
+                    <span class="section-divider-label">01 — Identification</span>
+                    <div class="section-divider-line"></div>
+                </div>
+
+                <div class="field-group">
+                    <label class="field-label">
+                        Nom de la fonction <span class="req">*</span>
+                    </label>
+                    <p class="field-hint">1-64 caractères · Lettres, chiffres, tirets et underscores</p>
+                    <input
+                        type="text"
+                        name="function_name"
+                        id="function_name"
+                        placeholder="ex: process-orders"
+                        required
+                        maxlength="64"
+                        pattern="[a-zA-Z0-9_-]+"
+                    >
+                </div>
+
+                <div class="field-group">
+                    <label class="field-label">
+                        Environnement <span class="req">*</span>
+                    </label>
+                    <div class="select-wrapper">
+                        <select name="environment" required>
+                            <option value="">— Choisir —</option>
+                            <option value="dev">🔧 Développement</option>
+                            <option value="preprod">🧪 Préproduction</option>
+                            <option value="prod">🚀 Production</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="section-divider">
+                    <span class="section-divider-label">02 — Runtime & Code</span>
+                    <div class="section-divider-line"></div>
+                </div>
+
+                <div class="field-group">
+                    <label class="field-label">
+                        Runtime <span class="req">*</span>
+                    </label>
+                    <div class="select-wrapper">
+                        <select name="runtime" id="runtime" required>
+                            <option value="">— Choisir le runtime —</option>
+                            <option value="python3.11">🐍 Python 3.11</option>
+                            <option value="python3.10">🐍 Python 3.10</option>
+                            <option value="python3.9">🐍 Python 3.9</option>
+                            <option value="nodejs20.x">🟢 Node.js 20.x</option>
+                            <option value="nodejs18.x">🟢 Node.js 18.x</option>
+                            <option value="java17">☕ Java 17</option>
+                            <option value="go1.x">🔷 Go 1.x</option>
+                            <option value="dotnet7">💎 .NET 7</option>
+                            <option value="ruby3.2">💎 Ruby 3.2</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="field-group">
+                    <label class="field-label">
+                        Handler <span class="req">*</span>
+                    </label>
+                    <p class="field-hint">Point d'entrée · Format: fichier.fonction (ex: lambda_function.lambda_handler)</p>
+                    <input
+                        type="text"
+                        name="handler"
+                        id="handler"
+                        placeholder="lambda_function.lambda_handler"
+                        required
+                    >
+                </div>
+
+                <div class="field-group">
+                    <label class="field-label">Code source</label>
+                    <p style="font-size: 11px; color: var(--gray-300); margin-bottom: 12px;">
+                        Option A: Écrire le code inline (petites fonctions) OU Option B: Upload ZIP (< 50 MB)
+                    </p>
+                    
+                    <div style="margin-bottom: 16px;">
+                        <strong style="font-size: 12px; display: block; margin-bottom: 8px;">Code inline (Python/Node.js)</strong>
+                        <textarea
+                            name="code_inline"
+                            id="code_inline"
+                            class="code-editor"
+                            placeholder="def lambda_handler(event, context):
+    return {
+        'statusCode': 200,
+        'body': 'Hello from Lambda!'
+    }"
+                        ></textarea>
+                    </div>
+
+                    <div>
+                        <strong style="font-size: 12px; display: block; margin-bottom: 8px;">OU Upload ZIP</strong>
+                        <div class="upload-zone">
+                            <input type="file" name="code_zip" accept=".zip">
+                            <span style="font-size: 36px; display: block; margin-bottom: 10px;">📦</span>
+                            <div style="font-weight: 600; margin-bottom: 4px;">Glissez votre fichier .zip</div>
+                            <div style="font-size: 12px; color: var(--gray-300);">ou cliquez pour parcourir</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="section-divider">
+                    <span class="section-divider-label">03 — Configuration des ressources</span>
+                    <div class="section-divider-line"></div>
+                </div>
+
+                <div class="field-group">
+                    <label class="field-label">Mémoire allouée</label>
+                    <div class="slider-container">
+                        <div class="slider-header">
+                            <span style="font-size: 12px; color: var(--gray-300);">128 MB</span>
+                            <span class="slider-value"><span id="memoryValue">512</span> MB</span>
+                            <span style="font-size: 12px; color: var(--gray-300);">10240 MB</span>
+                        </div>
+                        <input
+                            type="range"
+                            name="memory_size"
+                            id="memory_size"
+                            min="128"
+                            max="10240"
+                            step="64"
+                            value="512"
+                        >
+                    </div>
+                    <p class="field-hint" style="margin-top: 8px;">Coût: $0.0000166667 par GB-seconde</p>
+                </div>
+
+                <div class="field-group">
+                    <label class="field-label">Timeout (secondes)</label>
+                    <div class="slider-container">
+                        <div class="slider-header">
+                            <span style="font-size: 12px; color: var(--gray-300);">3s</span>
+                            <span class="slider-value"><span id="timeoutValue">30</span>s</span>
+                            <span style="font-size: 12px; color: var(--gray-300);">900s</span>
+                        </div>
+                        <input
+                            type="range"
+                            name="timeout"
+                            id="timeout"
+                            min="3"
+                            max="900"
+                            step="1"
+                            value="30"
+                        >
+                    </div>
+                </div>
+
+                <div class="section-divider">
+                    <span class="section-divider-label">04 — Variables d'environnement</span>
+                    <div class="section-divider-line"></div>
+                </div>
+
+                <div class="field-group">
+                    <div class="env-vars-container" id="envVarsContainer">
+                        <div class="env-var-row">
+                            <input type="text" name="env_key[]" placeholder="Clé (ex: DB_HOST)">
+                            <input type="text" name="env_value[]" placeholder="Valeur (ex: db.example.com)">
+                            <button type="button" class="btn-remove" onclick="removeEnvVar(this)">×</button>
+                        </div>
+                    </div>
+                    <button type="button" class="btn-add" onclick="addEnvVar()">+ Ajouter une variable</button>
+                </div>
+
+                <div style="margin-top: 32px;">
+                    <button type="submit" class="btn-primary">
+                        ⚡ Créer la fonction Lambda
+                    </button>
+                </div>
+
+                <p style="text-align: center; margin-top: 12px; font-size: 11px; color: var(--gray-300); font-family: 'Space Mono', monospace;">
+                    ⏱️ Déploiement en ~1-2 minutes
+                </p>
+
+            </form>
+        </div>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 20px;">
+        <div class="info-panel">
+            <div class="info-panel-header">🏗️ Ressources créées</div>
+            <div style="padding: 16px 20px;">
+                <div class="resource-item">
+                    <div class="resource-icon">⚡</div>
+                    <div>
+                        <div style="font-weight: 600; font-size: 12px;">aws_lambda_function</div>
+                        <div style="font-size: 10px; color: var(--gray-300); font-family: 'Space Mono', monospace;">FONCTION LAMBDA</div>
+                    </div>
+                </div>
+                <div class="resource-item">
+                    <div class="resource-icon">🔐</div>
+                    <div>
+                        <div style="font-weight: 600; font-size: 12px;">aws_iam_role</div>
+                        <div style="font-size: 10px; color: var(--gray-300); font-family: 'Space Mono', monospace;">RÔLE D'EXÉCUTION</div>
+                    </div>
+                </div>
+                <div class="resource-item">
+                    <div class="resource-icon">📊</div>
+                    <div>
+                        <div style="font-weight: 600; font-size: 12px;">aws_cloudwatch_log_group</div>
+                        <div style="font-size: 10px; color: var(--gray-300); font-family: 'Space Mono', monospace;">LOGS</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="info-panel">
+            <div class="info-panel-header">💡 Informations</div>
+            <div class="info-item">
+                <div style="font-weight: 700; font-size: 12px; margin-bottom: 4px;">🎁 Free Tier</div>
+                <div style="font-size: 11px; color: var(--gray-300); line-height: 1.5;">
+                    1 million de requêtes et 400 000 GB-secondes gratuits par mois. Au-delà: $0.20 par million de requêtes.
+                </div>
+            </div>
+            <div class="info-item">
+                <div style="font-weight: 700; font-size: 12px; margin-bottom: 4px;">⚙️ Triggers</div>
+                <div style="font-size: 11px; color: var(--gray-300); line-height: 1.5;">
+                    Ajoutez des déclencheurs après création: API Gateway, S3, DynamoDB, EventBridge, SQS, SNS...
+                </div>
+            </div>
+            <div class="info-item">
+                <div style="font-weight: 700; font-size: 12px; margin-bottom: 4px;">📦 Layers</div>
+                <div style="font-size: 11px; color: var(--gray-300); line-height: 1.5;">
+                    Utilisez Lambda Layers pour partager du code (bibliothèques, dépendances) entre fonctions.
+                </div>
+            </div>
+        </div>
+    </div>
+
+</main>
+
+<script>
+    const memorySlider = document.getElementById('memory_size');
+    const memoryValue = document.getElementById('memoryValue');
+    const timeoutSlider = document.getElementById('timeout');
+    const timeoutValue = document.getElementById('timeoutValue');
+    const runtimeSelect = document.getElementById('runtime');
+    const handlerInput = document.getElementById('handler');
+
+    memorySlider.addEventListener('input', () => {
+        memoryValue.textContent = memorySlider.value;
+    });
+
+    timeoutSlider.addEventListener('input', () => {
+        timeoutValue.textContent = timeoutSlider.value;
+    });
+
+    runtimeSelect.addEventListener('change', () => {
+        const runtime = runtimeSelect.value;
+        if (runtime.startsWith('python')) {
+            handlerInput.value = 'lambda_function.lambda_handler';
+        } else if (runtime.startsWith('nodejs')) {
+            handlerInput.value = 'index.handler';
+        } else if (runtime.startsWith('java')) {
+            handlerInput.value = 'example.Handler::handleRequest';
+        } else if (runtime.startsWith('go')) {
+            handlerInput.value = 'main';
+        } else if (runtime.startsWith('dotnet')) {
+            handlerInput.value = 'Assembly::Namespace.ClassName::MethodName';
+        }
+    });
+
+    function addEnvVar() {
+        const container = document.getElementById('envVarsContainer');
+        const row = document.createElement('div');
+        row.className = 'env-var-row';
+        row.innerHTML = `
+            <input type="text" name="env_key[]" placeholder="Clé">
+            <input type="text" name="env_value[]" placeholder="Valeur">
+            <button type="button" class="btn-remove" onclick="removeEnvVar(this)">×</button>
+        `;
+        container.appendChild(row);
+    }
+
+    function removeEnvVar(btn) {
+        const container = document.getElementById('envVarsContainer');
+        if (container.children.length > 1) {
+            btn.parentElement.remove();
+        }
+    }
+
+    document.getElementById('lambdaForm').addEventListener('submit', function(e) {
+        const functionName = document.getElementById('function_name').value;
+        const environment = document.querySelector('select[name="environment"]').value;
+        
+        if (environment === 'prod') {
+            if (!confirm(`⚠️ Déployer "${functionName}" en PRODUCTION ?`)) {
+                e.preventDefault();
+                return false;
+            }
+        }
+    });
+</script>
+</body>
+</html>

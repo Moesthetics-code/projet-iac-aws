@@ -1,0 +1,160 @@
+name: Terraform EC2 Deployment
+
+on:
+  workflow_dispatch:
+    inputs:
+      instance_name:
+        description: 'Nom de l instance EC2'
+        required: true
+        type: string
+      instance_os:
+        description: 'AMI ID'
+        required: true
+        type: string
+      instance_size:
+        description: 'Taille de l instance'
+        required: true
+        type: choice
+        options:
+          - t3.micro
+          - t3.small
+          - t3.medium
+          - t2.micro
+          - t2.small
+        default: 't3.micro'
+      instance_env:
+        description: 'Environnement'
+        required: true
+        type: choice
+        options:
+          - dev
+          - preprod
+          - prod
+      aws_region:
+        description: 'Région AWS'
+        required: true
+        type: string
+        default: 'eu-north-1'
+
+env:
+  TF_VERSION: '1.6.0'
+
+jobs:
+  terraform:
+    name: Deploy EC2 Instance
+    runs-on: ubuntu-latest
+    
+    defaults:
+      run:
+        working-directory: ./infra/ec2
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ github.event.inputs.aws_region }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Terraform Init
+        run: terraform init
+
+      - name: Terraform Validate
+        run: terraform validate
+
+      - name: Terraform Plan
+        run: |
+          terraform plan \
+            -var="instance_name=${{ github.event.inputs.instance_name }}" \
+            -var="instance_os=${{ github.event.inputs.instance_os }}" \
+            -var="instance_size=${{ github.event.inputs.instance_size }}" \
+            -var="instance_env=${{ github.event.inputs.instance_env }}" \
+            -var="aws_region=${{ github.event.inputs.aws_region }}" \
+            -out=tfplan
+
+      - name: Terraform Apply
+        if: github.event.inputs.instance_env == 'prod'
+        run: terraform apply tfplan
+        continue-on-error: false
+
+      - name: Terraform Apply (non-prod)
+        if: github.event.inputs.instance_env != 'prod'
+        run: terraform apply -auto-approve tfplan
+
+      - name: Get Outputs
+        id: outputs
+        run: |
+          echo "instance_id=$(terraform output -raw instance_id)" >> $GITHUB_OUTPUT
+          echo "public_ip=$(terraform output -raw public_ip)" >> $GITHUB_OUTPUT
+          echo "public_dns=$(terraform output -raw public_dns)" >> $GITHUB_OUTPUT
+          echo "http_url=$(terraform output -raw http_url)" >> $GITHUB_OUTPUT
+
+      - name: Display Results
+        run: |
+          echo "🎉 Instance EC2 créée avec succès!"
+          echo ""
+          echo "📦 Instance ID: ${{ steps.outputs.outputs.instance_id }}"
+          echo "🌐 IP Publique: ${{ steps.outputs.outputs.public_ip }}"
+          echo "🔗 DNS Public: ${{ steps.outputs.outputs.public_dns }}"
+          echo "🌍 URL HTTP: ${{ steps.outputs.outputs.http_url }}"
+          echo ""
+          echo "✅ Environnement: ${{ github.event.inputs.instance_env }}"
+          echo "💻 Type: ${{ github.event.inputs.instance_size }}"
+          echo "📍 Région: ${{ github.event.inputs.aws_region }}"
+
+      - name: Wait for Instance
+        run: |
+          echo "⏳ Attente du démarrage de l'instance..."
+          aws ec2 wait instance-status-ok --instance-ids ${{ steps.outputs.outputs.instance_id }}
+          echo "✅ Instance opérationnelle!"
+
+      - name: Test HTTP Endpoint
+        run: |
+          echo "🧪 Test de l'endpoint HTTP..."
+          sleep 30
+          curl -f ${{ steps.outputs.outputs.http_url }} || echo "⚠️ Endpoint pas encore accessible"
+
+      - name: Comment PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `## 🎉 Instance EC2 déployée avec succès!
+              
+              **Instance ID:** \`${{ steps.outputs.outputs.instance_id }}\`
+              **IP Publique:** \`${{ steps.outputs.outputs.public_ip }}\`
+              **URL:** ${{ steps.outputs.outputs.http_url }}
+              **Type:** ${{ github.event.inputs.instance_size }}
+              **Environnement:** ${{ github.event.inputs.instance_env }}
+              **Région:** ${{ github.event.inputs.aws_region }}
+              
+              ### 📝 Prochaines étapes
+              - SSH: \`ssh -i YOUR_KEY.pem ec2-user@${{ steps.outputs.outputs.public_ip }}\`
+              - HTTP: Visitez ${{ steps.outputs.outputs.http_url }}
+              `
+            })
+
+      - name: Slack Notification
+        if: always()
+        uses: 8398a7/action-slack@v3
+        with:
+          status: ${{ job.status }}
+          text: |
+            Déploiement EC2: ${{ github.event.inputs.instance_name }}
+            Environnement: ${{ github.event.inputs.instance_env }}
+            Status: ${{ job.status }}
+          webhook_url: ${{ secrets.SLACK_WEBHOOK }}
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}

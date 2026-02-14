@@ -1,0 +1,1007 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SONATEL IAC — AWS Management Console</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Sora:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        /* ============================================================
+           PROJET IAC SONATEL — AWS Management Console
+           ── Design System ──────────────────────────────────────────
+           Palette  : Midnight Navy + Multi-Color Service Icons
+           Font     : Sora (UI) + Space Mono (code/badges)
+           Aesthetic: Mission Control / Developer Console
+        ============================================================ */
+
+        :root {
+            --navy-900: #060d1f;
+            --navy-800: #0a1628;
+            --navy-700: #0f2044;
+            --navy-600: #162d5e;
+            --navy-500: #1e3a7e;
+            --amber:    #f59e0b;
+            --teal:     #0ea5e9;
+            --green:    #22c55e;
+            --purple:   #a855f7;
+            --pink:     #ec4899;
+            --red:      #ef4444;
+            --orange:   #f97316;
+            --white:    #f8fafc;
+            --gray-300: #94a3b8;
+            --gray-200: #cbd5e1;
+            --card-bg:  rgba(10, 22, 40, 0.92);
+            --border:   rgba(14, 165, 233, 0.18);
+            --glow-teal:0 0 24px rgba(14,165,233,0.25);
+            --radius:   14px;
+        }
+
+        *, *::before, *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        html { scroll-behavior: smooth; }
+
+        body {
+            font-family: 'Sora', sans-serif;
+            background-color: var(--navy-900);
+            color: var(--white);
+            min-height: 100vh;
+            overflow-x: hidden;
+            position: relative;
+            zoom: 0.8;
+        }
+
+        /* ── Animated Grid Background ─────────────────────────────── */
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background-image:
+                linear-gradient(rgba(14,165,233,0.04) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(14,165,233,0.04) 1px, transparent 1px);
+            background-size: 48px 48px;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* ── Radial Glow Orbs ──────────────────────────────────────── */
+        body::after {
+            content: '';
+            position: fixed;
+            width: 600px;
+            height: 600px;
+            background: radial-gradient(circle, rgba(245,158,11,0.07) 0%, transparent 70%);
+            top: -150px;
+            right: -150px;
+            pointer-events: none;
+            z-index: 0;
+            animation: orbFloat 10s ease-in-out infinite alternate;
+        }
+
+        @keyframes orbFloat {
+            from { transform: translate(0,0) scale(1); }
+            to   { transform: translate(-30px, 40px) scale(1.1); }
+        }
+
+        .orb-left {
+            position: fixed;
+            width: 500px;
+            height: 500px;
+            background: radial-gradient(circle, rgba(14,165,233,0.08) 0%, transparent 70%);
+            bottom: -100px;
+            left: -100px;
+            pointer-events: none;
+            z-index: 0;
+            animation: orbFloat 13s ease-in-out infinite alternate-reverse;
+        }
+
+        /* ── Top Navigation Bar ────────────────────────────────────── */
+        .topbar {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: rgba(6,13,31,0.85);
+            backdrop-filter: blur(16px);
+            border-bottom: 1px solid var(--border);
+            padding: 0 32px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .topbar-brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-family: 'Space Mono', monospace;
+            font-size: 13px;
+            letter-spacing: 0.05em;
+        }
+
+        .topbar-logo {
+            width: 32px;
+            height: 32px;
+            background: linear-gradient(135deg, var(--teal), var(--amber));
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+        }
+
+        .topbar-brand span { color: var(--gray-300); }
+        .topbar-brand strong { color: var(--white); }
+
+        .topbar-right {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .status-dot {
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            background: var(--green);
+            box-shadow: 0 0 8px var(--green);
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50%       { opacity: 0.4; }
+        }
+
+        .topbar-service {
+            font-family: 'Space Mono', monospace;
+            font-size: 11px;
+            color: var(--gray-300);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        /* ── Main Layout ───────────────────────────────────────────── */
+        .page-wrapper {
+            position: relative;
+            z-index: 1;
+            max-width: 1280px;
+            margin: 0 auto;
+            padding: 48px 24px 80px;
+        }
+
+        /* ── Hero Section ──────────────────────────────────────────── */
+        .hero {
+            text-align: center;
+            margin-bottom: 64px;
+            animation: fadeInUp 0.6s ease-out;
+        }
+
+        .hero-eyebrow {
+            font-family: 'Space Mono', monospace;
+            font-size: 11px;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            color: var(--teal);
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        .hero-eyebrow::before,
+        .hero-eyebrow::after {
+            content: '';
+            width: 40px; height: 2px;
+            background: var(--teal);
+        }
+
+        .hero-title {
+            font-size: 52px;
+            font-weight: 800;
+            line-height: 1.1;
+            letter-spacing: -0.02em;
+            background: linear-gradient(135deg, var(--white) 30%, var(--teal));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 20px;
+        }
+
+        .hero-subtitle {
+            color: var(--gray-300);
+            font-size: 16px;
+            font-weight: 300;
+            line-height: 1.6;
+            max-width: 640px;
+            margin: 0 auto 32px;
+        }
+
+        .hero-stats {
+            display: flex;
+            justify-content: center;
+            gap: 32px;
+            flex-wrap: wrap;
+        }
+
+        .stat {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .stat-value {
+            font-size: 32px;
+            font-weight: 800;
+            color: var(--teal);
+            font-family: 'Space Mono', monospace;
+        }
+
+        .stat-label {
+            font-size: 11px;
+            font-family: 'Space Mono', monospace;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--gray-300);
+        }
+
+        /* ── Service Grid ──────────────────────────────────────────── */
+        .section-header {
+            margin-bottom: 32px;
+        }
+
+        .section-title {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--white);
+            margin-bottom: 8px;
+        }
+
+        .section-desc {
+            font-size: 14px;
+            color: var(--gray-300);
+        }
+
+        .services-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 64px;
+        }
+
+        .service-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 24px;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-decoration: none;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .service-card::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, transparent 0%, rgba(14,165,233,0.03) 100%);
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .service-card:hover {
+            transform: translateY(-4px);
+            border-color: rgba(14,165,233,0.4);
+            box-shadow: 0 12px 40px rgba(14,165,233,0.15);
+        }
+
+        .service-card:hover::before { opacity: 1; }
+
+        .service-header {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .service-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            flex-shrink: 0;
+            position: relative;
+        }
+
+        .service-icon::before {
+            content: '';
+            position: absolute;
+            inset: -2px;
+            border-radius: 12px;
+            padding: 2px;
+            background: linear-gradient(135deg, var(--icon-color-1), var(--icon-color-2));
+            -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+            -webkit-mask-composite: xor;
+            mask-composite: exclude;
+            opacity: 0.4;
+        }
+
+        .service-icon-inner {
+            width: 100%;
+            height: 100%;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(var(--icon-color-rgb), 0.12);
+        }
+
+        .service-name {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--white);
+            margin-bottom: 2px;
+        }
+
+        .service-type {
+            font-size: 11px;
+            font-family: 'Space Mono', monospace;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--gray-300);
+        }
+
+        .service-desc {
+            font-size: 13px;
+            color: var(--gray-300);
+            line-height: 1.6;
+            position: relative;
+            z-index: 1;
+        }
+
+        .service-features {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .feature-tag {
+            font-size: 10px;
+            font-family: 'Space Mono', monospace;
+            padding: 4px 10px;
+            border-radius: 6px;
+            background: rgba(148,163,184,0.1);
+            border: 1px solid rgba(148,163,184,0.2);
+            color: var(--gray-300);
+        }
+
+        .service-arrow {
+            margin-left: auto;
+            font-size: 20px;
+            color: var(--teal);
+            transition: transform 0.3s;
+            position: relative;
+            z-index: 1;
+        }
+
+        .service-card:hover .service-arrow {
+            transform: translateX(4px);
+        }
+
+        /* ── Service-specific colors ───────────────────────────────── */
+        .service-ec2 {
+            --icon-color-1: #f97316;
+            --icon-color-2: #fb923c;
+            --icon-color-rgb: 249, 115, 22;
+        }
+
+        .service-s3 {
+            --icon-color-1: #22c55e;
+            --icon-color-2: #4ade80;
+            --icon-color-rgb: 34, 197, 94;
+        }
+
+        .service-rds {
+            --icon-color-1: #3b82f6;
+            --icon-color-2: #60a5fa;
+            --icon-color-rgb: 59, 130, 246;
+        }
+
+        .service-lambda {
+            --icon-color-1: #f59e0b;
+            --icon-color-2: #fbbf24;
+            --icon-color-rgb: 245, 158, 11;
+        }
+
+        .service-iam {
+            --icon-color-1: #ef4444;
+            --icon-color-2: #f87171;
+            --icon-color-rgb: 239, 68, 68;
+        }
+
+        .service-vpc {
+            --icon-color-1: #8b5cf6;
+            --icon-color-2: #a78bfa;
+            --icon-color-rgb: 139, 92, 246;
+        }
+
+        .service-cloudwatch {
+            --icon-color-1: #ec4899;
+            --icon-color-2: #f472b6;
+            --icon-color-rgb: 236, 72, 153;
+        }
+
+        .service-route53 {
+            --icon-color-1: #06b6d4;
+            --icon-color-2: #22d3ee;
+            --icon-color-rgb: 6, 182, 212;
+        }
+
+        .service-elb {
+            --icon-color-1: #14b8a6;
+            --icon-color-2: #2dd4bf;
+            --icon-color-rgb: 20, 184, 166;
+        }
+
+        .service-cloudfront {
+            --icon-color-1: #a855f7;
+            --icon-color-2: #c084fc;
+            --icon-color-rgb: 168, 85, 247;
+        }
+
+        /* ── Footer ────────────────────────────────────────────────── */
+        .footer {
+        background: rgba(6,13,31,0.95);
+        border-top: 1px solid rgba(20,184,166,0.2);
+        padding: 40px 24px;
+        text-align: center;
+        color: #94a3b8;
+        font-size: 12px;
+        margin-top: auto;
+    }
+
+    .footer-container {
+        max-width: 800px;
+        margin: 0 auto;
+    }
+
+    .footer-title {
+        font-size: 14px;
+        font-weight: 600;
+        margin-bottom: 8px;
+        color: #f8fafc;
+    }
+
+    .footer-subtitle {
+        font-size: 12px;
+        opacity: 0.8;
+        margin-bottom: 16px;
+    }
+
+    .footer-divider {
+        border-top: 1px solid rgba(255,255,255,0.15);
+        padding-top: 16px;
+        margin-top: 16px;
+    }
+
+    .footer-academic {
+        font-size: 12px;
+        line-height: 1.6;
+        margin-bottom: 20px;
+    }
+
+    .footer-professor {
+        font-weight: 600;
+        color: #14b8a6;
+        text-decoration: underline;
+        text-underline-offset: 3px;
+    }
+
+    /* GitHub Link Styles */
+    .footer-social {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+        margin: 20px 0;
+    }
+
+    .github-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 20px;
+        background: rgba(255,255,255,0.05);
+        border: 1px solid rgba(255,255,255,0.1);
+        border-radius: 8px;
+        color: #f8fafc;
+        text-decoration: none;
+        font-size: 13px;
+        font-weight: 500;
+        transition: all 0.3s ease;
+    }
+
+    .github-link:hover {
+        background: rgba(255,255,255,0.1);
+        border-color: #14b8a6;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(20,184,166,0.2);
+    }
+
+    .github-icon {
+        width: 20px;
+        height: 20px;
+        fill: currentColor;
+    }
+
+    .footer-credits {
+        margin-top: 16px;
+        font-size: 11px;
+        opacity: 0.6;
+    }
+
+    /* Responsive */
+    @media (max-width: 600px) {
+        .footer {
+            padding: 32px 16px;
+        }
+        .footer-title {
+            font-size: 13px;
+        }
+        .github-link {
+            font-size: 12px;
+            padding: 8px 16px;
+        }
+    }
+
+    .floating-help {
+        position: fixed;
+        bottom: 30px;
+        right: 30px;
+        z-index: 1000;
+    }
+
+    .floating-help-button {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 45px;
+        height: 45px;
+        background: linear-gradient(135deg, #14b8a6, #0d9488);
+        border-radius: 50%;
+        box-shadow: 0 4px 20px rgba(20,184,166,0.4);
+        color: white;
+        text-decoration: none;
+        transition: all 0.3s ease;
+    }
+
+    .floating-help-button:hover {
+        transform: scale(1.1);
+        box-shadow: 0 6px 30px rgba(20,184,166,0.6);
+    }
+
+    .floating-help-icon {
+        width: 28px;
+        height: 28px;
+    }
+
+    .help-tooltip {
+        position: absolute;
+        right: 70px;
+        top: 50%;
+        transform: translateY(-50%);
+        background: rgba(6,13,31,0.95);
+        color: white;
+        padding: 8px 16px;
+        border-radius: 8px;
+        font-size: 13px;
+        white-space: nowrap;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.3s;
+    }
+
+    .floating-help-button:hover .help-tooltip {
+        opacity: 1;
+    }
+
+        /* ── Animations ────────────────────────────────────────────── */
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        .services-grid > * {
+            animation: fadeInUp 0.5s ease-out both;
+        }
+
+        .services-grid > *:nth-child(1)  { animation-delay: 0.05s; }
+        .services-grid > *:nth-child(2)  { animation-delay: 0.10s; }
+        .services-grid > *:nth-child(3)  { animation-delay: 0.15s; }
+        .services-grid > *:nth-child(4)  { animation-delay: 0.20s; }
+        .services-grid > *:nth-child(5)  { animation-delay: 0.25s; }
+        .services-grid > *:nth-child(6)  { animation-delay: 0.30s; }
+        .services-grid > *:nth-child(7)  { animation-delay: 0.35s; }
+        .services-grid > *:nth-child(8)  { animation-delay: 0.40s; }
+        .services-grid > *:nth-child(9)  { animation-delay: 0.45s; }
+        .services-grid > *:nth-child(10) { animation-delay: 0.50s; }
+
+        /* ── Responsive ────────────────────────────────────────────── */
+        @media (max-width: 768px) {
+            .hero-title { font-size: 36px; }
+            .services-grid { grid-template-columns: 1fr; }
+        }
+
+        /* ── Status Banner ─────────────────────────────────────────── */
+        .status-banner {
+            background: rgba(34,197,94,0.08);
+            border: 1px solid rgba(34,197,94,0.25);
+            border-radius: 10px;
+            padding: 14px 20px;
+            margin-bottom: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            font-size: 13px;
+            animation: fadeInUp 0.8s ease-out;
+        }
+
+        .status-banner-icon {
+            font-size: 20px;
+        }
+
+        .status-banner-text {
+            color: var(--green);
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+<div class="orb-left"></div>
+
+<!-- ─────────────── TOP BAR ─────────────── -->
+<header class="topbar">
+    <div class="topbar-brand">
+        <a href="/" class="btn-back"><div class="topbar-logo">☁️</div></a>
+        <span>PROJET IAC</span> <strong>SONATEL</strong>
+    </div>
+    <div class="topbar-right">
+        <div class="topbar-service">
+            <div class="status-dot"></div>
+            10 Services AWS disponibles
+        </div>
+    </div>
+</header>
+
+<!-- ─────────────── MAIN ─────────────── -->
+<main class="page-wrapper">
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="hero-eyebrow">Infrastructure as Code · AWS</div>
+        <h1 class="hero-title">AWS Management<br>Console IAC</h1>
+        <p class="hero-subtitle">
+            Déployez et gérez votre infrastructure AWS via Terraform et GitHub Actions.
+            Interface unifiée pour 10 services essentiels avec configuration guidée et validation en temps réel.
+        </p>
+        <div class="hero-stats">
+            <div class="stat">
+                <div class="stat-value">10</div>
+                <div class="stat-label">Services AWS</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value">100%</div>
+                <div class="stat-label">Infrastructure as Code</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value">∞</div>
+                <div class="stat-label">Automatisation</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Status Banner -->
+    <div class="status-banner">
+        <span class="status-banner-text">Tous les services sont opérationnels · Dernière mise à jour: février 2026</span>
+    </div>
+
+    <!-- Services Grid -->
+    <div class="section-header">
+        <h2 class="section-title">Services disponibles</h2>
+        <p class="section-desc">Cliquez sur un service pour accéder à l'interface de déploiement Terraform</p>
+    </div>
+
+    <div class="services-grid">
+
+        <!-- EC2 -->
+        <a href="/ec2" class="service-card service-ec2">
+            <div class="service-header">
+                <div class="service-icon">
+                    <div class="service-icon-inner">🖥️</div>
+                </div>
+                <div>
+                    <div class="service-name">EC2</div>
+                    <div class="service-type">COMPUTE</div>
+                </div>
+                <span class="service-arrow">→</span>
+            </div>
+            <div class="service-desc">
+                Déployez des instances EC2 avec security groups, VPC par défaut, et configuration réseau complète.
+            </div>
+            <div class="service-features">
+                <span class="feature-tag">Auto-scaling</span>
+                <span class="feature-tag">SSH configuré</span>
+                <span class="feature-tag">Tags Terraform</span>
+            </div>
+        </a>
+
+        <!-- S3 -->
+        <a href="/s3" class="service-card service-s3">
+            <div class="service-header">
+                <div class="service-icon">
+                    <div class="service-icon-inner">🪣</div>
+                </div>
+                <div>
+                    <div class="service-name">S3</div>
+                    <div class="service-type">STORAGE</div>
+                </div>
+                <span class="service-arrow">→</span>
+            </div>
+            <div class="service-desc">
+                Créez des buckets S3 pour hébergement de sites statiques avec politique d'accès public et versioning.
+            </div>
+            <div class="service-features">
+                <span class="feature-tag">Static website</span>
+                <span class="feature-tag">Public access</span>
+                <span class="feature-tag">CORS</span>
+            </div>
+        </a>
+
+        <!-- RDS -->
+        <a href="/rds" class="service-card service-rds">
+            <div class="service-header">
+                <div class="service-icon">
+                    <div class="service-icon-inner">🗄️</div>
+                </div>
+                <div>
+                    <div class="service-name">RDS</div>
+                    <div class="service-type">DATABASE</div>
+                </div>
+                <span class="service-arrow">→</span>
+            </div>
+            <div class="service-desc">
+                Provisionnez des bases de données relationnelles (MySQL, PostgreSQL, MariaDB) avec snapshots automatiques.
+            </div>
+            <div class="service-features">
+                <span class="feature-tag">Multi-AZ</span>
+                <span class="feature-tag">Backups auto</span>
+                <span class="feature-tag">Encryption</span>
+            </div>
+        </a>
+
+        <!-- Lambda -->
+        <a href="/lambda" class="service-card service-lambda">
+            <div class="service-header">
+                <div class="service-icon">
+                    <div class="service-icon-inner">⚡</div>
+                </div>
+                <div>
+                    <div class="service-name">Lambda</div>
+                    <div class="service-type">SERVERLESS</div>
+                </div>
+                <span class="service-arrow">→</span>
+            </div>
+            <div class="service-desc">
+                Déployez des fonctions Lambda avec code ZIP, variables d'environnement, et triggers (API Gateway, S3...).
+            </div>
+            <div class="service-features">
+                <span class="feature-tag">Zero-ops</span>
+                <span class="feature-tag">Event-driven</span>
+                <span class="feature-tag">Logs CloudWatch</span>
+            </div>
+        </a>
+
+        <!-- IAM -->
+        <a href="/iam" class="service-card service-iam">
+            <div class="service-header">
+                <div class="service-icon">
+                    <div class="service-icon-inner">🔐</div>
+                </div>
+                <div>
+                    <div class="service-name">IAM</div>
+                    <div class="service-type">SECURITY</div>
+                </div>
+                <span class="service-arrow">→</span>
+            </div>
+            <div class="service-desc">
+                Créez des utilisateurs, groupes, rôles et politiques IAM avec principe du moindre privilège.
+            </div>
+            <div class="service-features">
+                <span class="feature-tag">Policies JSON</span>
+                <span class="feature-tag">MFA support</span>
+                <span class="feature-tag">Audit trails</span>
+            </div>
+        </a>
+
+        <!-- VPC -->
+        <a href="/vpc" class="service-card service-vpc">
+            <div class="service-header">
+                <div class="service-icon">
+                    <div class="service-icon-inner">🌐</div>
+                </div>
+                <div>
+                    <div class="service-name">VPC</div>
+                    <div class="service-type">NETWORKING</div>
+                </div>
+                <span class="service-arrow">→</span>
+            </div>
+            <div class="service-desc">
+                Configurez des VPC isolés avec subnets publics/privés, Internet Gateway, NAT Gateway et route tables.
+            </div>
+            <div class="service-features">
+                <span class="feature-tag">Subnets</span>
+                <span class="feature-tag">IGW/NAT</span>
+                <span class="feature-tag">Security Groups</span>
+            </div>
+        </a>
+
+        <!-- CloudWatch -->
+        <a href="/cloudwatch" class="service-card service-cloudwatch">
+            <div class="service-header">
+                <div class="service-icon">
+                    <div class="service-icon-inner">📊</div>
+                </div>
+                <div>
+                    <div class="service-name">CloudWatch</div>
+                    <div class="service-type">MONITORING</div>
+                </div>
+                <span class="service-arrow">→</span>
+            </div>
+            <div class="service-desc">
+                Configurez des alarmes, dashboards et log groups pour surveiller métriques, logs et événements AWS.
+            </div>
+            <div class="service-features">
+                <span class="feature-tag">Alarmes</span>
+                <span class="feature-tag">Dashboards</span>
+                <span class="feature-tag">Log insights</span>
+            </div>
+        </a>
+
+        <!-- Route 53 -->
+        <a href="/route53" class="service-card service-route53">
+            <div class="service-header">
+                <div class="service-icon">
+                    <div class="service-icon-inner">🌍</div>
+                </div>
+                <div>
+                    <div class="service-name">Route 53</div>
+                    <div class="service-type">DNS</div>
+                </div>
+                <span class="service-arrow">→</span>
+            </div>
+            <div class="service-desc">
+                Gérez des zones DNS, créez des enregistrements A/CNAME/MX, configurez le routage géographique et les health checks.
+            </div>
+            <div class="service-features">
+                <span class="feature-tag">Health checks</span>
+                <span class="feature-tag">Geo routing</span>
+                <span class="feature-tag">Failover</span>
+            </div>
+        </a>
+
+        <!-- ELB -->
+        <a href="/elb" class="service-card service-elb">
+            <div class="service-header">
+                <div class="service-icon">
+                    <div class="service-icon-inner">⚖️</div>
+                </div>
+                <div>
+                    <div class="service-name">ELB</div>
+                    <div class="service-type">LOAD BALANCING</div>
+                </div>
+                <span class="service-arrow">→</span>
+            </div>
+            <div class="service-desc">
+                Déployez des Application Load Balancers (ALB) ou Network Load Balancers (NLB) avec target groups et listeners.
+            </div>
+            <div class="service-features">
+                <span class="feature-tag">ALB/NLB</span>
+                <span class="feature-tag">SSL/TLS</span>
+                <span class="feature-tag">Health checks</span>
+            </div>
+        </a>
+
+        <!-- CloudFront -->
+        <a href="/cloudfront" class="service-card service-cloudfront">
+            <div class="service-header">
+                <div class="service-icon">
+                    <div class="service-icon-inner">🚀</div>
+                </div>
+                <div>
+                    <div class="service-name">CloudFront</div>
+                    <div class="service-type">CDN</div>
+                </div>
+                <span class="service-arrow">→</span>
+            </div>
+            <div class="service-desc">
+                Créez des distributions CloudFront pour accélérer la livraison de contenu avec cache global et SSL.
+            </div>
+            <div class="service-features">
+                <span class="feature-tag">Edge locations</span>
+                <span class="feature-tag">HTTPS</span>
+                <span class="feature-tag">Custom domains</span>
+            </div>
+        </a>
+
+    </div>
+
+</main>
+
+<!-- ─────────────── FOOTER ─────────────── -->
+
+<footer class="footer">
+    <div class="footer-container">
+        <!-- Titre principal -->
+        <p class="footer-title">
+            PROJET IAC SONATEL · AWS Management Console
+        </p>
+        
+        <!-- Sous-titre -->
+        <p class="footer-subtitle">
+            Infrastructure as Code · Terraform + GitHub Actions
+        </p>
+        
+        <!-- Section académique -->
+        <div class="footer-divider">
+            <p class="footer-academic">
+                <strong style="text-decoration:underline;">Projet académique</strong><br>
+                Encadrant : <span class="footer-professor">Mr DIOP</span><br>
+                Formation Cloud Computing · SONATEL
+            </p>
+        </div>
+
+        <!-- Lien GitHub -->
+        <div class="footer-social">
+            <a href="https://github.com/VOTRE_USERNAME" target="_blank" rel="noopener noreferrer" class="github-link">
+                <svg class="github-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
+                </svg>
+                Voir le code source
+            </a>
+        </div>
+        
+        <!-- Crédits -->
+        <p class="footer-credits">
+            Développé avec ☁️ · © 2024 SONATEL. Tous droits réservés.
+        </p>
+    </div>
+</footer>
+
+
+<!-- À ajouter avant la fermeture du </body> -->
+<div class="floating-help">
+    <a href="/aide" class="floating-help-button">
+        <svg class="floating-help-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+        </svg>
+        <span class="help-tooltip">Guide d'utilisation</span>
+    </a>
+</div>
+
+</body>
+</html>

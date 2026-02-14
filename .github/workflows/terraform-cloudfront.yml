@@ -1,0 +1,148 @@
+name: Terraform CloudFront Deployment
+
+on:
+  workflow_dispatch:
+    inputs:
+      origin_domain:
+        description: 'Domaine d origine'
+        required: true
+        type: string
+      origin_type:
+        description: 'Type d origine'
+        required: true
+        type: choice
+        options:
+          - s3
+          - custom
+        default: 's3'
+      distribution_comment:
+        description: 'Description'
+        required: false
+        type: string
+      aliases:
+        description: 'Domaines alternatifs (CNAME, séparés par virgule)'
+        required: false
+        type: string
+      acm_certificate_arn:
+        description: 'ARN du certificat ACM (us-east-1)'
+        required: false
+        type: string
+      default_ttl:
+        description: 'TTL par défaut (secondes)'
+        required: true
+        type: number
+        default: 86400
+      price_class:
+        description: 'Price Class'
+        required: true
+        type: choice
+        options:
+          - PriceClass_100
+          - PriceClass_200
+          - PriceClass_All
+        default: 'PriceClass_100'
+      compress:
+        description: 'Activer compression'
+        required: true
+        type: boolean
+        default: true
+      ipv6:
+        description: 'Activer IPv6'
+        required: true
+        type: boolean
+        default: true
+      logging:
+        description: 'Activer logs'
+        required: false
+        type: boolean
+        default: false
+      viewer_protocol_policy:
+        description: 'Politique protocole'
+        required: true
+        type: choice
+        options:
+          - redirect-to-https
+          - https-only
+          - allow-all
+        default: 'redirect-to-https'
+
+env:
+  AWS_REGION: 'us-east-1'  # CloudFront nécessite us-east-1
+  TF_VERSION: '1.6.0'
+
+jobs:
+  terraform:
+    name: Deploy CloudFront Distribution
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./infra/cloudfront
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Terraform Init
+        run: terraform init
+
+      - name: Terraform Validate
+        run: terraform validate
+
+      - name: Terraform Plan
+        run: |
+          terraform plan \
+            -var="origin_domain=${{ github.event.inputs.origin_domain }}" \
+            -var="origin_type=${{ github.event.inputs.origin_type }}" \
+            -var="distribution_comment=${{ github.event.inputs.distribution_comment }}" \
+            -var="aliases=${{ github.event.inputs.aliases }}" \
+            -var="acm_certificate_arn=${{ github.event.inputs.acm_certificate_arn }}" \
+            -var="default_ttl=${{ github.event.inputs.default_ttl }}" \
+            -var="price_class=${{ github.event.inputs.price_class }}" \
+            -var="compress=${{ github.event.inputs.compress }}" \
+            -var="ipv6=${{ github.event.inputs.ipv6 }}" \
+            -var="logging=${{ github.event.inputs.logging }}" \
+            -var="viewer_protocol_policy=${{ github.event.inputs.viewer_protocol_policy }}" \
+            -out=tfplan
+
+      - name: Terraform Apply
+        run: terraform apply -auto-approve tfplan
+
+      - name: Get Outputs
+        id: outputs
+        run: |
+          echo "distribution_id=$(terraform output -raw distribution_id)" >> $GITHUB_OUTPUT
+          echo "domain_name=$(terraform output -raw domain_name)" >> $GITHUB_OUTPUT
+          echo "status=$(terraform output -raw status)" >> $GITHUB_OUTPUT
+
+      - name: Display Results
+        run: |
+          echo "🚀 Distribution CloudFront créée avec succès!"
+          echo ""
+          echo "Distribution ID: ${{ steps.outputs.outputs.distribution_id }}"
+          echo "Domain CloudFront: ${{ steps.outputs.outputs.domain_name }}"
+          echo "Status: ${{ steps.outputs.outputs.status }}"
+          echo ""
+          echo "🌍 URL: https://${{ steps.outputs.outputs.domain_name }}"
+          echo ""
+          echo "⏱️ La distribution prend 15-30 minutes pour se propager mondialement"
+          echo ""
+          echo "💡 Pour un domaine personnalisé:"
+          echo "   1. Créez un CNAME dans Route 53: www.example.com → ${{ steps.outputs.outputs.domain_name }}"
+          echo "   2. Assurez-vous que le certificat ACM est bien configuré"
+
+      - name: Wait for Distribution
+        run: |
+          echo "⏳ En attente du déploiement de la distribution..."
+          aws cloudfront wait distribution-deployed --id ${{ steps.outputs.outputs.distribution_id }} || echo "⚠️ Le déploiement continue en arrière-plan"

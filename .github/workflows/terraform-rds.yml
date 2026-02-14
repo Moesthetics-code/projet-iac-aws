@@ -1,0 +1,126 @@
+# ═══════════════════════════════════════════════════════════════
+# terraform-rds.yml
+# ═══════════════════════════════════════════════════════════════
+
+name: Terraform RDS Deployment
+
+on:
+  workflow_dispatch:
+    inputs:
+      db_identifier:
+        description: 'Identifiant de la base de données'
+        required: true
+        type: string
+      engine:
+        description: 'Moteur de base de données'
+        required: true
+        type: choice
+        options:
+          - mysql
+          - postgres
+          - mariadb
+      engine_version:
+        description: 'Version du moteur'
+        required: true
+        type: string
+      instance_class:
+        description: 'Classe de l instance'
+        required: true
+        type: choice
+        options:
+          - db.t3.micro
+          - db.t3.small
+          - db.t3.medium
+          - db.m5.large
+        default: 'db.t3.micro'
+      allocated_storage:
+        description: 'Stockage en GB'
+        required: true
+        type: number
+        default: 20
+      username:
+        description: 'Nom d utilisateur master'
+        required: true
+        type: string
+      password:
+        description: 'Mot de passe master'
+        required: true
+        type: string
+      db_name:
+        description: 'Nom de la base initiale'
+        required: false
+        type: string
+      multi_az:
+        description: 'Multi-AZ'
+        required: true
+        type: boolean
+        default: false
+      backup_retention:
+        description: 'Rétention backups (jours)'
+        required: true
+        type: number
+        default: 7
+      environment:
+        description: 'Environnement'
+        required: true
+        type: choice
+        options:
+          - dev
+          - preprod
+          - prod
+
+env:
+  AWS_REGION: 'eu-west-3'
+  TF_VERSION: '1.6.0'
+
+jobs:
+  terraform:
+    name: Deploy RDS Instance
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./infra/rds
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Terraform Init
+        run: terraform init
+
+      - name: Terraform Plan
+        run: |
+          terraform plan \
+            -var="db_identifier=${{ github.event.inputs.db_identifier }}" \
+            -var="engine=${{ github.event.inputs.engine }}" \
+            -var="engine_version=${{ github.event.inputs.engine_version }}" \
+            -var="instance_class=${{ github.event.inputs.instance_class }}" \
+            -var="allocated_storage=${{ github.event.inputs.allocated_storage }}" \
+            -var="username=${{ github.event.inputs.username }}" \
+            -var="password=${{ github.event.inputs.password }}" \
+            -var="db_name=${{ github.event.inputs.db_name }}" \
+            -var="multi_az=${{ github.event.inputs.multi_az }}" \
+            -var="backup_retention=${{ github.event.inputs.backup_retention }}" \
+            -var="environment=${{ github.event.inputs.environment }}" \
+            -out=tfplan
+
+      - name: Terraform Apply
+        run: terraform apply tfplan
+
+      - name: Get Outputs
+        id: outputs
+        run: |
+          echo "endpoint=$(terraform output -raw db_endpoint)" >> $GITHUB_OUTPUT
+          echo "port=$(terraform output -raw db_port)" >> $GITHUB_OUTPUT

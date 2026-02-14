@@ -1,0 +1,152 @@
+name: Terraform ELB Deployment
+
+on:
+  workflow_dispatch:
+    inputs:
+      lb_name:
+        description: 'Nom du Load Balancer'
+        required: true
+        type: string
+      lb_type:
+        description: 'Type de Load Balancer'
+        required: true
+        type: choice
+        options:
+          - application
+          - network
+        default: 'application'
+      scheme:
+        description: 'Schéma'
+        required: true
+        type: choice
+        options:
+          - internet-facing
+          - internal
+        default: 'internet-facing'
+      subnet_ids:
+        description: 'IDs des subnets (séparés par virgule)'
+        required: false
+        type: string
+      target_group_port:
+        description: 'Port du Target Group'
+        required: true
+        type: number
+        default: 80
+      health_check_path:
+        description: 'Health Check Path'
+        required: false
+        type: string
+        default: '/'
+      healthy_threshold:
+        description: 'Healthy Threshold'
+        required: true
+        type: number
+        default: 2
+      unhealthy_threshold:
+        description: 'Unhealthy Threshold'
+        required: true
+        type: number
+        default: 2
+      health_check_timeout:
+        description: 'Timeout (secondes)'
+        required: true
+        type: number
+        default: 5
+      health_check_interval:
+        description: 'Intervalle (secondes)'
+        required: true
+        type: number
+        default: 30
+      http_action:
+        description: 'Action HTTP'
+        required: true
+        type: choice
+        options:
+          - forward
+          - redirect
+        default: 'forward'
+      ssl_certificate_arn:
+        description: 'ARN du certificat SSL (optionnel)'
+        required: false
+        type: string
+
+env:
+  AWS_REGION: 'eu-west-3'
+  TF_VERSION: '1.6.0'
+
+jobs:
+  terraform:
+    name: Deploy Load Balancer
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./infra/elb
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Terraform Init
+        run: terraform init
+
+      - name: Terraform Validate
+        run: terraform validate
+
+      - name: Terraform Plan
+        run: |
+          # Convertir les subnet_ids en array Terraform si fournis
+          SUBNET_IDS="${{ github.event.inputs.subnet_ids }}"
+          if [ -n "$SUBNET_IDS" ]; then
+            SUBNET_VAR="-var=subnet_ids=[$(echo $SUBNET_IDS | sed 's/,/","/g' | sed 's/^/"/;s/$/"/')]"
+          else
+            SUBNET_VAR="-var=subnet_ids=[]"
+          fi
+          
+          terraform plan \
+            -var="lb_name=${{ github.event.inputs.lb_name }}" \
+            -var="lb_type=${{ github.event.inputs.lb_type }}" \
+            -var="scheme=${{ github.event.inputs.scheme }}" \
+            $SUBNET_VAR \
+            -var="target_group_port=${{ github.event.inputs.target_group_port }}" \
+            -var="health_check_path=${{ github.event.inputs.health_check_path }}" \
+            -var="healthy_threshold=${{ github.event.inputs.healthy_threshold }}" \
+            -var="unhealthy_threshold=${{ github.event.inputs.unhealthy_threshold }}" \
+            -var="health_check_timeout=${{ github.event.inputs.health_check_timeout }}" \
+            -var="health_check_interval=${{ github.event.inputs.health_check_interval }}" \
+            -var="http_action=${{ github.event.inputs.http_action }}" \
+            -var="ssl_certificate_arn=${{ github.event.inputs.ssl_certificate_arn }}" \
+            -out=tfplan
+
+      - name: Terraform Apply
+        run: terraform apply -auto-approve tfplan
+
+      - name: Get Outputs
+        id: outputs
+        run: |
+          echo "lb_dns=$(terraform output -raw lb_dns_name)" >> $GITHUB_OUTPUT
+          echo "lb_arn=$(terraform output -raw lb_arn)" >> $GITHUB_OUTPUT
+          echo "target_group_arn=$(terraform output -raw target_group_arn)" >> $GITHUB_OUTPUT
+
+      - name: Display Results
+        run: |
+          echo "✅ Load Balancer créé avec succès!"
+          echo ""
+          echo "DNS: ${{ steps.outputs.outputs.lb_dns }}"
+          echo "ARN: ${{ steps.outputs.outputs.lb_arn }}"
+          echo "Target Group: ${{ steps.outputs.outputs.target_group_arn }}"
+          echo ""
+          echo "🌐 URL: http://${{ steps.outputs.outputs.lb_dns }}"
+          echo ""
+          echo "💡 Pour un domaine personnalisé, créez un CNAME dans Route 53"

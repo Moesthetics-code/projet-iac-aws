@@ -1,0 +1,835 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Guide d'utilisation · SONATEL IAC</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Sora:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --navy-900: #060d1f;
+            --navy-800: #0a1628;
+            --navy-700: #0f2044;
+            --teal: #14b8a6;
+            --teal-dim: #0d9488;
+            --green: #22c55e;
+            --orange: #f97316;
+            --white: #f8fafc;
+            --gray-300: #94a3b8;
+            --gray-200: #cbd5e1;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        
+        body {
+            font-family: 'Sora', sans-serif;
+            background-color: var(--navy-900);
+            color: var(--white);
+            line-height: 1.6;
+            zoom: 0.8;
+        }
+
+        /* Topbar */
+        .topbar {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: rgba(6,13,31,0.95);
+            backdrop-filter: blur(16px);
+            border-bottom: 1px solid rgba(20,184,166,0.2);
+            padding: 16px 32px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .topbar-brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .topbar-logo {
+            font-size: 24px;
+        }
+
+        .topbar-title {
+            font-family: 'Space Mono', monospace;
+            font-size: 14px;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+        }
+
+        .back-button {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 18px;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 8px;
+            color: var(--white);
+            text-decoration: none;
+            font-size: 13px;
+            transition: all 0.3s;
+        }
+
+        .back-button:hover {
+            background: rgba(255,255,255,0.1);
+            border-color: var(--teal);
+        }
+
+        /* Container */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 60px 32px;
+        }
+
+        /* Header */
+        .page-header {
+            text-align: center;
+            margin-bottom: 60px;
+        }
+
+        .page-eyebrow {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-family: 'Space Mono', monospace;
+            font-size: 11px;
+            color: var(--teal);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-bottom: 16px;
+        }
+
+        .page-eyebrow::before {
+            content: '';
+            width: 24px;
+            height: 2px;
+            background: var(--teal);
+        }
+
+        .page-title {
+            font-size: 48px;
+            font-weight: 800;
+            line-height: 1.1;
+            background: linear-gradient(135deg, var(--white) 30%, var(--teal));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 16px;
+        }
+
+        .page-subtitle {
+            color: var(--gray-300);
+            font-size: 18px;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        /* Quick Links */
+        .quick-links {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 60px;
+        }
+
+        .quick-link {
+            background: rgba(15,32,68,0.5);
+            border: 1px solid rgba(20,184,166,0.2);
+            border-radius: 12px;
+            padding: 20px;
+            text-decoration: none;
+            color: var(--white);
+            transition: all 0.3s;
+        }
+
+        .quick-link:hover {
+            background: rgba(15,32,68,0.8);
+            border-color: var(--teal);
+            transform: translateY(-4px);
+        }
+
+        .quick-link-icon {
+            font-size: 32px;
+            margin-bottom: 12px;
+        }
+
+        .quick-link-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .quick-link-desc {
+            font-size: 13px;
+            color: var(--gray-300);
+        }
+
+        /* Section */
+        .section {
+            background: rgba(10,22,40,0.5);
+            border: 1px solid rgba(20,184,166,0.15);
+            border-radius: 16px;
+            padding: 40px;
+            margin-bottom: 40px;
+        }
+
+        .section-title {
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--teal);
+            margin-bottom: 24px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .section-icon {
+            font-size: 32px;
+        }
+
+        .subsection {
+            margin-bottom: 32px;
+        }
+
+        .subsection-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: var(--white);
+            margin-bottom: 16px;
+        }
+
+        .step {
+            background: rgba(6,13,31,0.6);
+            border-left: 3px solid var(--teal);
+            padding: 20px;
+            margin-bottom: 16px;
+            border-radius: 8px;
+        }
+
+        .step-number {
+            display: inline-block;
+            background: var(--teal);
+            color: var(--navy-900);
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            text-align: center;
+            line-height: 28px;
+            font-weight: 700;
+            font-size: 14px;
+            margin-right: 12px;
+        }
+
+        .step-title {
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .step-content {
+            color: var(--gray-300);
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        /* Table */
+        .info-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+
+        .info-table th {
+            background: rgba(20,184,166,0.1);
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+            border-bottom: 2px solid var(--teal);
+        }
+
+        .info-table td {
+            padding: 12px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .info-table tr:hover {
+            background: rgba(255,255,255,0.03);
+        }
+
+        /* Alert Box */
+        .alert {
+            padding: 16px 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+            display: flex;
+            align-items: start;
+            gap: 12px;
+        }
+
+        .alert-success {
+            background: rgba(34,197,94,0.1);
+            border: 1px solid rgba(34,197,94,0.3);
+        }
+
+        .alert-warning {
+            background: rgba(249,115,22,0.1);
+            border: 1px solid rgba(249,115,22,0.3);
+        }
+
+        .alert-info {
+            background: rgba(20,184,166,0.1);
+            border: 1px solid rgba(20,184,166,0.3);
+        }
+
+        .alert-icon {
+            font-size: 20px;
+            flex-shrink: 0;
+        }
+
+        /* Code Block */
+        .code-block {
+            background: rgba(0,0,0,0.5);
+            border: 1px solid rgba(20,184,166,0.2);
+            border-radius: 8px;
+            padding: 20px;
+            margin: 16px 0;
+            overflow-x: auto;
+        }
+
+        .code-block code {
+            font-family: 'Space Mono', monospace;
+            font-size: 13px;
+            color: var(--green);
+        }
+
+        /* Footer */
+        .footer {
+            background: rgba(6,13,31,0.95);
+            border-top: 1px solid rgba(20,184,166,0.2);
+            padding: 40px 24px;
+            text-align: center;
+            color: #94a3b8;
+            font-size: 12px;
+            margin-top: 60px;
+        }
+
+        .github-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 8px;
+            color: #f8fafc;
+            text-decoration: none;
+            font-size: 13px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            margin: 20px 0;
+        }
+
+        .github-link:hover {
+            background: rgba(255,255,255,0.1);
+            border-color: #14b8a6;
+            transform: translateY(-2px);
+        }
+
+        @media (max-width: 768px) {
+            .container { padding: 40px 20px; }
+            .page-title { font-size: 32px; }
+            .section { padding: 24px; }
+            .quick-links { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Topbar -->
+    <div class="topbar">
+        <div class="topbar-brand">
+            <div class="topbar-logo">☁️</div>
+            <div>
+                <div class="topbar-title">SONATEL IAC</div>
+                <div style="font-size:11px; opacity:0.7;">Guide d'utilisation</div>
+            </div>
+        </div>
+        <a href="/" class="back-button">
+            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+            </svg>
+            Retour à l'accueil
+        </a>
+    </div>
+
+    <div class="container">
+        <!-- Header -->
+        <div class="page-header">
+            <div class="page-eyebrow">Documentation</div>
+            <h1 class="page-title">Guide d'utilisation</h1>
+            <p class="page-subtitle">
+                Tout ce que vous devez savoir pour déployer votre infrastructure AWS avec SONATEL IAC
+            </p>
+        </div>
+
+        <!-- Quick Links -->
+        <div class="quick-links">
+            <a href="#demarrage" class="quick-link">
+                <div class="quick-link-icon">🚀</div>
+                <div class="quick-link-title">Démarrage rapide</div>
+                <div class="quick-link-desc">Premiers pas avec l'application</div>
+            </a>
+            <a href="#services" class="quick-link">
+                <div class="quick-link-icon">☁️</div>
+                <div class="quick-link-title">Services AWS</div>
+                <div class="quick-link-desc">Guide de chaque service</div>
+            </a>
+            <a href="#bonnes-pratiques" class="quick-link">
+                <div class="quick-link-icon">✅</div>
+                <div class="quick-link-title">Bonnes pratiques</div>
+                <div class="quick-link-desc">Conseils et astuces</div>
+            </a>
+            <a href="#depannage" class="quick-link">
+                <div class="quick-link-icon">🔧</div>
+                <div class="quick-link-title">Dépannage</div>
+                <div class="quick-link-desc">Solutions aux problèmes courants</div>
+            </a>
+        </div>
+
+        <!-- Section 1: Démarrage -->
+        <div id="demarrage" class="section">
+            <h2 class="section-title">
+                <span class="section-icon">🚀</span>
+                Démarrage rapide
+            </h2>
+
+            <div class="subsection">
+                <h3 class="subsection-title">Comment ça marche ?</h3>
+                <p style="color: var(--gray-300); margin-bottom: 20px;">
+                    SONATEL IAC est une interface web qui vous permet de déployer des ressources AWS en quelques clics. 
+                    Remplissez un formulaire, cliquez sur "Créer", et GitHub Actions + Terraform déploient automatiquement 
+                    votre infrastructure !
+                </p>
+
+                <div class="step">
+                    <span class="step-number">1</span>
+                    <div style="display: inline-block; width: calc(100% - 48px); vertical-align: top;">
+                        <div class="step-title">Choisissez un service AWS</div>
+                        <div class="step-content">
+                            Sur la page d'accueil, cliquez sur l'une des 10 cartes de services : EC2, S3, RDS, Lambda, IAM, VPC, CloudWatch, Route 53, ELB, ou CloudFront.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="step">
+                    <span class="step-number">2</span>
+                    <div style="display: inline-block; width: calc(100% - 48px); vertical-align: top;">
+                        <div class="step-title">Remplissez le formulaire</div>
+                        <div class="step-content">
+                            Configurez votre ressource en remplissant les champs requis (marqués d'un *). 
+                            L'application valide vos saisies en temps réel et affiche des aperçus dynamiques.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="step">
+                    <span class="step-number">3</span>
+                    <div style="display: inline-block; width: calc(100% - 48px); vertical-align: top;">
+                        <div class="step-title">Lancez le déploiement</div>
+                        <div class="step-content">
+                            Cliquez sur le bouton "Créer". L'application déclenche automatiquement un workflow GitHub Actions 
+                            qui exécute Terraform pour créer vos ressources sur AWS.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="step">
+                    <span class="step-number">4</span>
+                    <div style="display: inline-block; width: calc(100% - 48px); vertical-align: top;">
+                        <div class="step-title">Vérifiez le déploiement</div>
+                        <div class="step-content">
+                            Allez sur GitHub → Actions pour suivre le workflow. Une fois terminé (3-15 minutes selon le service), 
+                            vos ressources sont disponibles sur AWS !
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="alert alert-info">
+                <span class="alert-icon">💡</span>
+                <div>
+                    <strong>Astuce :</strong> Pour votre premier test, utilisez EC2 ou S3 avec l'environnement "dev". 
+                    Ces services se déploient rapidement (2-5 minutes) et sont couverts par le Free Tier AWS.
+                </div>
+            </div>
+        </div>
+
+        <!-- Section 2: Services AWS -->
+        <div id="services" class="section">
+            <h2 class="section-title">
+                <span class="section-icon">☁️</span>
+                Guide des services AWS
+            </h2>
+
+            <table class="info-table">
+                <thead>
+                    <tr>
+                        <th>Service</th>
+                        <th>Description</th>
+                        <th>Temps de déploiement</th>
+                        <th>Coût estimé</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>EC2</strong></td>
+                        <td>Serveurs virtuels pour héberger vos applications</td>
+                        <td>3-5 minutes</td>
+                        <td>$7.50/mois (t3.micro)</td>
+                    </tr>
+                    <tr>
+                        <td><strong>S3</strong></td>
+                        <td>Stockage d'objets illimité pour fichiers et sites web</td>
+                        <td>1-2 minutes</td>
+                        <td>$0.12/mois (10GB)</td>
+                    </tr>
+                    <tr>
+                        <td><strong>RDS</strong></td>
+                        <td>Bases de données MySQL, PostgreSQL ou MariaDB</td>
+                        <td>10-15 minutes</td>
+                        <td>$15/mois (db.t3.micro)</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Lambda</strong></td>
+                        <td>Exécution de code serverless sans gérer de serveurs</td>
+                        <td>2-3 minutes</td>
+                        <td>$0.20/mois (1M invocations)</td>
+                    </tr>
+                    <tr>
+                        <td><strong>IAM</strong></td>
+                        <td>Gestion des utilisateurs, groupes, rôles et permissions</td>
+                        <td>1 minute</td>
+                        <td>Gratuit</td>
+                    </tr>
+                    <tr>
+                        <td><strong>VPC</strong></td>
+                        <td>Réseau virtuel privé avec subnets et NAT Gateway</td>
+                        <td>3-5 minutes</td>
+                        <td>$64/mois (2 NAT GW)</td>
+                    </tr>
+                    <tr>
+                        <td><strong>CloudWatch</strong></td>
+                        <td>Surveillance et alarmes pour vos ressources AWS</td>
+                        <td>1-2 minutes</td>
+                        <td>$1/mois (10 alarmes)</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Route 53</strong></td>
+                        <td>Service DNS pour gérer vos noms de domaine</td>
+                        <td>2-3 minutes</td>
+                        <td>$0.50/mois (zone)</td>
+                    </tr>
+                    <tr>
+                        <td><strong>ELB</strong></td>
+                        <td>Load Balancer pour distribuer le trafic entre serveurs</td>
+                        <td>3-5 minutes</td>
+                        <td>$20-25/mois (ALB)</td>
+                    </tr>
+                    <tr>
+                        <td><strong>CloudFront</strong></td>
+                        <td>CDN global pour distribuer du contenu dans le monde</td>
+                        <td>15-30 minutes</td>
+                        <td>$85/mois (1TB transfert)</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="alert alert-warning">
+                <span class="alert-icon">⚠️</span>
+                <div>
+                    <strong>Important :</strong> Les coûts indiqués sont des estimations. Surveillez toujours votre 
+                    facturation AWS et détruisez les ressources de test avec <code>terraform destroy</code>.
+                </div>
+            </div>
+        </div>
+
+        <!-- Section 3: Exemples détaillés -->
+        <div class="section">
+            <h2 class="section-title">
+                <span class="section-icon">📖</span>
+                Exemples de déploiement
+            </h2>
+
+            <div class="subsection">
+                <h3 class="subsection-title">Exemple 1 : Déployer un serveur web EC2</h3>
+                
+                <div class="step">
+                    <span class="step-number">1</span>
+                    <div style="display: inline-block; width: calc(100% - 48px); vertical-align: top;">
+                        <div class="step-title">Cliquez sur la carte "EC2"</div>
+                    </div>
+                </div>
+
+                <div class="step">
+                    <span class="step-number">2</span>
+                    <div style="display: inline-block; width: calc(100% - 48px); vertical-align: top;">
+                        <div class="step-title">Remplissez les champs :</div>
+                        <div class="step-content">
+                            <ul style="margin: 8px 0; padding-left: 20px;">
+                                <li><strong>Nom :</strong> <code>mon-serveur-web</code></li>
+                                <li><strong>Région :</strong> EU West 3 (Paris)</li>
+                                <li><strong>OS :</strong> Amazon Linux 2023 (choisissez l'AMI)</li>
+                                <li><strong>Taille :</strong> t3.micro</li>
+                                <li><strong>Environnement :</strong> dev</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="step">
+                    <span class="step-number">3</span>
+                    <div style="display: inline-block; width: calc(100% - 48px); vertical-align: top;">
+                        <div class="step-title">Cliquez sur "Créer l'instance EC2"</div>
+                    </div>
+                </div>
+
+                <div class="step">
+                    <span class="step-number">4</span>
+                    <div style="display: inline-block; width: calc(100% - 48px); vertical-align: top;">
+                        <div class="step-title">Attendez 3-5 minutes</div>
+                        <div class="step-content">
+                            Le workflow GitHub Actions s'exécute. Une fois terminé, votre serveur est accessible 
+                            via l'IP publique affichée dans les outputs du workflow.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="alert alert-success">
+                    <span class="alert-icon">✅</span>
+                    <div>
+                        Votre serveur web est maintenant en ligne ! Visitez <code>http://VOTRE_IP_PUBLIQUE</code> 
+                        pour voir la page de test SONATEL IAC.
+                    </div>
+                </div>
+            </div>
+
+            <div class="subsection">
+                <h3 class="subsection-title">Exemple 2 : Héberger un site web statique sur S3</h3>
+                
+                <div class="step">
+                    <span class="step-number">1</span>
+                    <div style="display: inline-block; width: calc(100% - 48px); vertical-align: top;">
+                        <div class="step-title">Cliquez sur la carte "S3"</div>
+                    </div>
+                </div>
+
+                <div class="step">
+                    <span class="step-number">2</span>
+                    <div style="display: inline-block; width: calc(100% - 48px); vertical-align: top;">
+                        <div class="step-title">Configurez le bucket :</div>
+                        <div class="step-content">
+                            <ul style="margin: 8px 0; padding-left: 20px;">
+                                <li><strong>Nom :</strong> <code>mon-site-web-2024</code> (doit être unique)</li>
+                                <li><strong>Région :</strong> eu-west-3</li>
+                                <li><strong>Environnement :</strong> dev</li>
+                                <li><strong>Versioning :</strong> Enabled</li>
+                                <li><strong>Accès public :</strong> Décochez tous les toggles pour permettre l'accès</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="step">
+                    <span class="step-number">3</span>
+                    <div style="display: inline-block; width: calc(100% - 48px); vertical-align: top;">
+                        <div class="step-title">Notez l'URL d'aperçu</div>
+                        <div class="step-content">
+                            Le formulaire affiche automatiquement l'URL de votre futur site : 
+                            <code>http://mon-site-web-2024.s3-website-eu-west-3.amazonaws.com</code>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="step">
+                    <span class="step-number">4</span>
+                    <div style="display: inline-block; width: calc(100% - 48px); vertical-align: top;">
+                        <div class="step-title">Déployez et visitez</div>
+                        <div class="step-content">
+                            Après le déploiement (1-2 minutes), votre site est accessible à l'URL affichée. 
+                            Une page index.html de bienvenue est automatiquement créée !
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section 4: Bonnes pratiques -->
+        <div id="bonnes-pratiques" class="section">
+            <h2 class="section-title">
+                <span class="section-icon">✅</span>
+                Bonnes pratiques
+            </h2>
+
+            <div class="subsection">
+                <h3 class="subsection-title">Nommage des ressources</h3>
+                <ul style="color: var(--gray-300); padding-left: 24px; line-height: 1.8;">
+                    <li>✅ Utilisez des noms descriptifs : <code>serveur-web-prod</code>, <code>db-users-preprod</code></li>
+                    <li>✅ Incluez l'environnement dans le nom quand possible</li>
+                    <li>❌ Évitez les noms génériques : <code>test</code>, <code>server1</code>, <code>bucket</code></li>
+                    <li>✅ Utilisez des tirets plutôt que des underscores</li>
+                </ul>
+            </div>
+
+            <div class="subsection">
+                <h3 class="subsection-title">Gestion des environnements</h3>
+                <ul style="color: var(--gray-300); padding-left: 24px; line-height: 1.8;">
+                    <li><strong>dev</strong> : Pour les tests et le développement (ressources minimales)</li>
+                    <li><strong>preprod</strong> : Environnement de pré-production (similaire à prod)</li>
+                    <li><strong>prod</strong> : Production avec haute disponibilité et sauvegardes</li>
+                </ul>
+            </div>
+
+            <div class="subsection">
+                <h3 class="subsection-title">Sécurité</h3>
+                <ul style="color: var(--gray-300); padding-left: 24px; line-height: 1.8;">
+                    <li>🔒 N'activez l'accès public que si nécessaire (ex: site web S3)</li>
+                    <li>🔒 Utilisez toujours le chiffrement pour RDS et S3</li>
+                    <li>🔒 Créez des utilisateurs IAM avec les permissions minimales</li>
+                    <li>🔒 Activez Multi-AZ pour les bases de données de production</li>
+                </ul>
+            </div>
+
+            <div class="subsection">
+                <h3 class="subsection-title">Optimisation des coûts</h3>
+                <ul style="color: var(--gray-300); padding-left: 24px; line-height: 1.8;">
+                    <li>💰 Utilisez le Free Tier AWS pour les tests (t3.micro, 5GB S3 gratuits)</li>
+                    <li>💰 Arrêtez les instances EC2 quand vous ne les utilisez pas</li>
+                    <li>💰 Détruisez les ressources de test avec <code>terraform destroy</code></li>
+                    <li>💰 Surveillez vos coûts dans AWS Cost Explorer</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Section 5: Dépannage -->
+        <div id="depannage" class="section">
+            <h2 class="section-title">
+                <span class="section-icon">🔧</span>
+                Dépannage
+            </h2>
+
+            <div class="subsection">
+                <h3 class="subsection-title">Le formulaire ne se soumet pas</h3>
+                <div class="alert alert-warning">
+                    <span class="alert-icon">⚠️</span>
+                    <div>
+                        <strong>Vérifiez :</strong>
+                        <ul style="margin: 8px 0 0; padding-left: 20px;">
+                            <li>Tous les champs obligatoires (*) sont remplis</li>
+                            <li>Les valeurs sont valides (pas d'erreurs en rouge)</li>
+                            <li>Les checkboxes fonctionnent après correction</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="subsection">
+                <h3 class="subsection-title">Le workflow GitHub Actions échoue</h3>
+                <div class="code-block">
+                    <code>1. Allez sur GitHub → Actions<br>
+2. Cliquez sur le workflow en échec<br>
+3. Consultez les logs pour voir l'erreur<br>
+4. Erreurs communes :<br>
+&nbsp;&nbsp;&nbsp;- Invalid credentials → Vérifier secrets AWS<br>
+&nbsp;&nbsp;&nbsp;- Resource already exists → Détruire avec terraform destroy<br>
+&nbsp;&nbsp;&nbsp;- Permission denied → Vérifier permissions IAM</code>
+                </div>
+            </div>
+
+            <div class="subsection">
+                <h3 class="subsection-title">La ressource n'apparaît pas sur AWS</h3>
+                <ul style="color: var(--gray-300); padding-left: 24px; line-height: 1.8;">
+                    <li>✅ Attendez la fin du workflow GitHub Actions</li>
+                    <li>✅ Vérifiez que vous êtes dans la bonne région AWS</li>
+                    <li>✅ Consultez les outputs du workflow pour les détails</li>
+                    <li>✅ Certains services prennent plus de temps (CloudFront: 15-30 min)</li>
+                </ul>
+            </div>
+
+            <div class="subsection">
+                <h3 class="subsection-title">Les checkboxes ne fonctionnent pas</h3>
+                <div class="alert alert-info">
+                    <span class="alert-icon">💡</span>
+                    <div>
+                        Si les toggles ne répondent pas au clic, consultez le fichier 
+                        <strong>SOLUTION_CHECKBOX_FINALE.txt</strong> dans la documentation. 
+                        La correction prend 15 minutes.
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section 6: Support -->
+        <div class="section">
+            <h2 class="section-title">
+                <span class="section-icon">💬</span>
+                Besoin d'aide ?
+            </h2>
+
+            <p style="color: var(--gray-300); margin-bottom: 24px;">
+                Si vous rencontrez un problème non couvert dans ce guide :
+            </p>
+
+            <ul style="color: var(--gray-300); padding-left: 24px; line-height: 1.8;">
+                <li>📚 Consultez la documentation complète dans le dépôt GitHub</li>
+                <li>🔍 Vérifiez les logs GitHub Actions pour les erreurs détaillées</li>
+                <li>☁️ Consultez la console AWS pour voir l'état de vos ressources</li>
+                <li>📖 Lisez les fichiers README.md et GUIDE_DEPLOIEMENT_COMPLET.md</li>
+            </ul>
+
+            <div class="alert alert-success" style="margin-top: 24px;">
+                <span class="alert-icon">🎓</span>
+                <div>
+                    <strong>Projet académique</strong><br>
+                    Ce projet a été réalisé dans le cadre de la formation Cloud Computing sous la supervision de 
+                    <strong style="color: var(--teal);">Mr DIOP</strong> · SONATEL Academy
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div style="max-width:800px; margin:0 auto;">
+            <p style="font-size:14px; font-weight:600; margin-bottom:8px;">
+                PROJET IAC SONATEL · AWS Management Console
+            </p>
+            <p style="font-size:12px; opacity:0.8; margin-bottom:16px;">
+                Infrastructure as Code · Terraform + GitHub Actions
+            </p>
+            
+            <div style="border-top:1px solid rgba(255,255,255,0.15); padding-top:16px; margin-top:16px;">
+                <p style="font-size:12px; line-height:1.6;">
+                    <strong style="text-decoration:underline;">Projet académique</strong><br>
+                    Encadrant : <span style="font-weight:600; color:#14b8a6;">Mr DIOP</span><br>
+                    Formation Cloud Computing · SONATEL
+                </p>
+            </div>
+
+            <!-- Lien GitHub -->
+            <a href="https://github.com/VOTRE_USERNAME" target="_blank" rel="noopener noreferrer" class="github-link">
+                <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
+                </svg>
+                Voir le code source
+            </a>
+            
+            <p style="margin-top:16px; font-size:11px; opacity:0.6;">
+                Développé avec ☁️ · © 2024 SONATEL. Tous droits réservés.
+            </p>
+        </div>
+    </footer>
+</body>
+</html>

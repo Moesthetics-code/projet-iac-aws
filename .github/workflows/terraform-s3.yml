@@ -1,0 +1,310 @@
+name: Terraform S3 Static Website Deployment
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  Ce workflow est déclenché par l'application Flask via l'API GitHub.
+#  Il crée un bucket S3, configure l'hébergement web statique, et uploade
+#  les fichiers du site.
+# ─────────────────────────────────────────────────────────────────────────────
+
+on:
+  workflow_dispatch:
+    inputs:
+      bucket_name:
+        description: 'Nom du bucket S3 (unique globalement)'
+        required: true
+        type: string
+
+      bucket_env:
+        description: 'Environnement de déploiement'
+        required: true
+        type: choice
+        options:
+          - dev
+          - preprod
+          - prod
+
+      bucket_region:
+        description: 'Région AWS'
+        required: true
+        type: choice
+        options:
+          - eu-west-3    # Paris
+          - eu-north-1   # Stockholm
+          - us-east-1    # Virginie du Nord
+          - us-west-2    # Oregon
+
+      index_document:
+        description: 'Document index du site (ex: index.html)'
+        required: true
+        type: string
+        default: 'index.html'
+
+      error_document:
+        description: 'Document 404 (ex: error.html)'
+        required: false
+        type: string
+        default: 'error.html'
+
+      storage_class:
+        description: 'Classe de stockage S3'
+        required: true
+        type: choice
+        options:
+          - STANDARD
+          - STANDARD_IA
+          - ONEZONE_IA
+          - INTELLIGENT_TIERING
+
+      enable_versioning:
+        description: 'Versioning du bucket'
+        required: true
+        type: choice
+        options:
+          - Disabled
+          - Enabled
+          - Suspended
+
+      block_public_acls:
+        description: 'Bloquer les ACL publiques (false = site public autorisé)'
+        required: true
+        type: choice
+        options:
+          - 'false'
+          - 'true'
+        default: 'false'
+
+      block_public_policy:
+        description: 'Bloquer les politiques publiques (false = GetObject autorisé)'
+        required: true
+        type: choice
+        options:
+          - 'false'
+          - 'true'
+        default: 'false'
+
+      ignore_public_acls:
+        description: 'Ignorer les ACL publiques'
+        required: true
+        type: choice
+        options:
+          - 'false'
+          - 'true'
+        default: 'false'
+
+      restrict_public_buckets:
+        description: 'Restreindre les buckets publics'
+        required: true
+        type: choice
+        options:
+          - 'false'
+          - 'true'
+        default: 'false'
+
+      file_names:
+        description: 'JSON list des noms de fichiers uploadés (métadonnées)'
+        required: false
+        type: string
+        default: '[]'
+
+# ─── Variables d'environnement Terraform ─────────────────────────────────
+env:
+  TF_VAR_bucket_name:            ${{ github.event.inputs.bucket_name }}
+  TF_VAR_bucket_env:             ${{ github.event.inputs.bucket_env }}
+  TF_VAR_region:                 ${{ github.event.inputs.bucket_region }}
+  TF_VAR_index_document:         ${{ github.event.inputs.index_document }}
+  TF_VAR_error_document:         ${{ github.event.inputs.error_document }}
+  TF_VAR_storage_class:          ${{ github.event.inputs.storage_class }}
+  TF_VAR_enable_versioning:      ${{ github.event.inputs.enable_versioning }}
+  TF_VAR_block_public_acls:      ${{ github.event.inputs.block_public_acls }}
+  TF_VAR_block_public_policy:    ${{ github.event.inputs.block_public_policy }}
+  TF_VAR_ignore_public_acls:     ${{ github.event.inputs.ignore_public_acls }}
+  TF_VAR_restrict_public_buckets: ${{ github.event.inputs.restrict_public_buckets }}
+
+jobs:
+  terraform-s3:
+    name: 'S3 Static Website Deployment'
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: ./infra
+
+    steps:
+
+    # ── 1. Checkout ─────────────────────────────────────────────────────────
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    # ── 2. Configure AWS Credentials ─────────────────────────────────────────
+    - name: Configure AWS Credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id:     ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region:            ${{ github.event.inputs.bucket_region }}
+
+    # ── 3. Verify AWS Credentials ─────────────────────────────────────────────
+    - name: Verify AWS Credentials
+      run: |
+        aws sts get-caller-identity
+        echo "✅ Credentials AWS configurés avec succès"
+        echo "📍 Région cible: ${{ github.event.inputs.bucket_region }}"
+
+    # ── 4. Setup Terraform ────────────────────────────────────────────────────
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v3
+      with:
+        terraform_version: 1.8.5
+
+    # ── 5. Prepare site directory ─────────────────────────────────────────────
+    # Cette étape simule les fichiers du site. En production, vous récupéreriez
+    # les fichiers depuis un artifact, un autre repo, ou un bucket S3 source.
+    - name: Prepare site directory
+      run: |
+        mkdir -p ./site
+        echo "⚠️ Répertoire ./site créé."
+        echo "En production, copiez vos fichiers dans ./site avant cette étape."
+        echo "Exemple: cp -r ../my-website/* ./site/"
+
+        # Créer un fichier de démonstration si le dossier est vide
+        if [ -z "$(ls -A ./site 2>/dev/null)" ]; then
+          echo "Création d'une page de démonstration..."
+          cat > ./site/index.html << 'EOF'
+        <!DOCTYPE html>
+        <html><head><meta charset="UTF-8"><title>SONATEL IAC — S3</title></head>
+        <body style="font-family:sans-serif;text-align:center;padding:60px;background:#060d1f;color:#f8fafc">
+          <h1>🪣 Site déployé via Terraform + GitHub Actions</h1>
+          <p>Projet IAC SONATEL — S3 Static Website Deployer</p>
+        </body></html>
+        EOF
+          cat > ./site/error.html << 'EOF'
+        <!DOCTYPE html>
+        <html><head><meta charset="UTF-8"><title>404 — SONATEL IAC</title></head>
+        <body style="font-family:sans-serif;text-align:center;padding:60px;background:#060d1f;color:#f8fafc">
+          <h1>404</h1><p>Page non trouvée</p>
+        </body></html>
+        EOF
+          echo "✅ Fichiers de démonstration créés"
+        fi
+
+        echo "📂 Fichiers dans ./site:"
+        ls -la ./site/
+
+    # ── 6. Terraform Format Check ─────────────────────────────────────────────
+    - name: Terraform Format Check
+      run: terraform fmt -recursive -check
+      continue-on-error: true
+
+    # ── 7. Remove Lock File ───────────────────────────────────────────────────
+    - name: Remove Terraform Lock File
+      run: rm -f .terraform.lock.hcl
+      continue-on-error: true
+
+    # ── 8. Terraform Init ─────────────────────────────────────────────────────
+    - name: Terraform Init
+      run: |
+        echo "🔧 Initialisation de Terraform..."
+        terraform init -upgrade
+        echo "✅ Terraform initialisé"
+
+    # ── 9. Terraform Validate ─────────────────────────────────────────────────
+    - name: Terraform Validate
+      run: |
+        terraform validate
+        echo "✅ Configuration Terraform valide"
+
+    # ── 10. Terraform Plan ────────────────────────────────────────────────────
+    - name: Terraform Plan
+      run: |
+        echo "📋 Génération du plan Terraform..."
+        echo "🪣  Bucket: ${{ github.event.inputs.bucket_name }}"
+        echo "🌍  Région: ${{ github.event.inputs.bucket_region }}"
+        echo "🏷️  Env   : ${{ github.event.inputs.bucket_env }}"
+        echo "🔓  Accès public: block_public_acls=false, block_public_policy=false"
+        echo ""
+        terraform plan -out=tfplan -no-color
+        echo ""
+        echo "📋 Résumé du plan:"
+        terraform show -no-color tfplan
+
+    # ── 11. Upload Plan Artifact ──────────────────────────────────────────────
+    - name: Upload Plan
+      uses: actions/upload-artifact@v4
+      with:
+        name: terraform-s3-plan
+        path: infra/tfplan
+        retention-days: 1
+
+    # ── 12. Terraform Apply ───────────────────────────────────────────────────
+    - name: Terraform Apply
+      if: github.event_name == 'workflow_dispatch'
+      run: |
+        echo "🚀 Application de la configuration Terraform..."
+        terraform apply -auto-approve tfplan
+        echo ""
+        echo "✅ Infrastructure S3 déployée avec succès!"
+
+    # ── 13. Terraform Output ──────────────────────────────────────────────────
+    - name: Terraform Output
+      if: success()
+      run: |
+        echo "📊 Outputs de l'infrastructure:"
+        echo "================================"
+        terraform output -json > outputs.json
+        terraform output
+        echo ""
+        echo "🌐 URL du site web:"
+        terraform output website_url
+
+    # ── 14. Upload Outputs ────────────────────────────────────────────────────
+    - name: Upload Outputs
+      if: success()
+      uses: actions/upload-artifact@v4
+      with:
+        name: terraform-s3-outputs
+        path: infra/outputs.json
+        retention-days: 7
+
+    # ── 15. Test Endpoint ─────────────────────────────────────────────────────
+    - name: Test Website Endpoint
+      if: success()
+      run: |
+        ENDPOINT=$(terraform output -raw website_endpoint)
+        echo "🧪 Test de l'endpoint: http://$ENDPOINT"
+        sleep 5  # Délai pour la propagation
+        HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "http://$ENDPOINT" || echo "000")
+        echo "Code HTTP: $HTTP_CODE"
+        if [ "$HTTP_CODE" = "200" ]; then
+          echo "✅ Site web accessible publiquement"
+        else
+          echo "⚠️ Code HTTP: $HTTP_CODE (la propagation DNS peut prendre quelques secondes)"
+        fi
+
+    # ── 16. Deployment Summary ────────────────────────────────────────────────
+    - name: Deployment Summary
+      if: success()
+      run: |
+        echo "## 🪣 Déploiement S3 réussi!" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### 📦 Configuration du Bucket:" >> $GITHUB_STEP_SUMMARY
+        echo "| Paramètre | Valeur |" >> $GITHUB_STEP_SUMMARY
+        echo "|-----------|--------|" >> $GITHUB_STEP_SUMMARY
+        echo "| **Nom** | \`${{ github.event.inputs.bucket_name }}\` |" >> $GITHUB_STEP_SUMMARY
+        echo "| **Région** | ${{ github.event.inputs.bucket_region }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| **Environnement** | ${{ github.event.inputs.bucket_env }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| **Storage Class** | ${{ github.event.inputs.storage_class }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| **Versioning** | ${{ github.event.inputs.enable_versioning }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| **Index Document** | \`${{ github.event.inputs.index_document }}\` |" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### 🔓 Accès Public:" >> $GITHUB_STEP_SUMMARY
+        echo "| Option | Valeur |" >> $GITHUB_STEP_SUMMARY
+        echo "|--------|--------|" >> $GITHUB_STEP_SUMMARY
+        echo "| block_public_acls | ${{ github.event.inputs.block_public_acls }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| block_public_policy | ${{ github.event.inputs.block_public_policy }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| ignore_public_acls | ${{ github.event.inputs.ignore_public_acls }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| restrict_public_buckets | ${{ github.event.inputs.restrict_public_buckets }} |" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### 🌐 Terraform Outputs:" >> $GITHUB_STEP_SUMMARY
+        echo '```' >> $GITHUB_STEP_SUMMARY
+        terraform output >> $GITHUB_STEP_SUMMARY
+        echo '```' >> $GITHUB_STEP_SUMMARY
