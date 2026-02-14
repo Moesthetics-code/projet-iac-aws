@@ -977,8 +977,8 @@ MIT License — Copyright (c) 2026 SONATEL IAC
 
 Pour toute question :
 - Ouvrez une issue sur GitHub
-- Email : support@sonatel-iac.sn (exemple)
+- Email : mintok2000@gmail.com (exemple)
 
 ---
 
-**Projet maintenu avec ☁️ par l'équipe IAC SONATEL**
+**Projet maintenu avec AWS par Mohamed NDIAYE**
