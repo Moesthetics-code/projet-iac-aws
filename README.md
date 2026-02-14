@@ -977,7 +977,7 @@ MIT License — Copyright (c) 2026 SONATEL IAC
 
 Pour toute question :
 - Ouvrez une issue sur GitHub
-- Email : mintok2000@gmail.com (exemple)
+- Email : mintok2000@gmail.com
 
 ---
 
