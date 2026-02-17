@@ -1,0 +1,127 @@
+name: Terraform CodeDeploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      application_name:
+        required: true
+        type: string
+      compute_platform:
+        required: true
+        type: choice
+        options: [Server, Lambda, ECS]
+      deployment_group_name:
+        required: true
+        type: string
+      environment:
+        required: true
+        type: choice
+        options: [dev, staging, prod]
+      region:
+        required: true
+        type: string
+        default: 'eu-west-3'
+      deployment_config_name:
+        required: true
+        type: string
+      ec2_tag_filters:
+        required: false
+        type: string
+      autoscaling_groups:
+        required: false
+        type: string
+      lambda_function_name:
+        required: false
+        type: string
+      lambda_alias:
+        required: false
+        type: string
+        default: 'live'
+      ecs_cluster_name:
+        required: false
+        type: string
+      ecs_service_name:
+        required: false
+        type: string
+      blue_green_enabled:
+        required: false
+        type: boolean
+      green_fleet_option:
+        required: false
+        type: string
+      terminate_blue_instances:
+        required: false
+        type: string
+      blue_green_timeout:
+        required: false
+        type: string
+        default: '60'
+      auto_rollback_enabled:
+        required: false
+        type: boolean
+        default: true
+      rollback_on_failure:
+        required: false
+        type: boolean
+      rollback_on_alarm:
+        required: false
+        type: boolean
+      use_load_balancer:
+        required: false
+        type: boolean
+      load_balancer_type:
+        required: false
+        type: string
+      target_group_name:
+        required: false
+        type: string
+      classic_lb_name:
+        required: false
+        type: string
+
+jobs:
+  terraform:
+    name: 'Terraform Apply - CodeDeploy'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./infra/codedeploy
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ github.event.inputs.region }}
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.7.0
+
+      - run: terraform init
+
+      - name: Terraform Plan
+        run: |
+          terraform plan \
+            -var="application_name=${{ github.event.inputs.application_name }}" \
+            -var="compute_platform=${{ github.event.inputs.compute_platform }}" \
+            -var="deployment_group_name=${{ github.event.inputs.deployment_group_name }}" \
+            -var="environment=${{ github.event.inputs.environment }}" \
+            -var="region=${{ github.event.inputs.region }}" \
+            -var="deployment_config_name=${{ github.event.inputs.deployment_config_name }}" \
+            -var="lambda_function_name=${{ github.event.inputs.lambda_function_name }}" \
+            -var="ecs_cluster_name=${{ github.event.inputs.ecs_cluster_name }}" \
+            -var="ecs_service_name=${{ github.event.inputs.ecs_service_name }}" \
+            -var="blue_green_enabled=${{ github.event.inputs.blue_green_enabled }}" \
+            -var="auto_rollback_enabled=${{ github.event.inputs.auto_rollback_enabled }}" \
+            -var="use_load_balancer=${{ github.event.inputs.use_load_balancer }}" \
+            -var="target_group_name=${{ github.event.inputs.target_group_name }}" \
+            -out=tfplan
+
+      - run: terraform apply -auto-approve tfplan
+
+      - name: Terraform Output
+        run: |
+          terraform output -json > outputs.json
+          echo "✅ Application CodeDeploy créée !"
+          cat outputs.json | jq '.'

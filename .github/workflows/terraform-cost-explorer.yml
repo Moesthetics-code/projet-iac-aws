@@ -1,0 +1,50 @@
+name: Terraform Cost Explorer
+
+on:
+  workflow_dispatch:
+    inputs:
+      report_name:
+        required: false
+        type: string
+        default: 'monthly-cost-report'
+      enable_reports:
+        required: false
+        type: boolean
+        default: false
+      report_email:
+        required: false
+        type: string
+
+jobs:
+  terraform:
+    name: 'Terraform Apply - Cost Explorer'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./infra/cost-explorer
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.7.0
+
+      - run: terraform init
+      - name: Terraform Plan
+        run: |
+          terraform plan \
+            -var="report_name=${{ github.event.inputs.report_name }}" \
+            -var="enable_reports=${{ github.event.inputs.enable_reports }}" \
+            -var="report_email=${{ github.event.inputs.report_email }}" \
+            -out=tfplan
+      - run: terraform apply -auto-approve tfplan
+      - name: Terraform Output
+        run: |
+          terraform output -json > outputs.json
+          echo "✅ Cost Explorer configuré !"
+          cat outputs.json | jq '.'

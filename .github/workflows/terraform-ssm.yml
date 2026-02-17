@@ -1,0 +1,76 @@
+name: Terraform Systems Manager
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        required: true
+        type: choice
+        options: [dev, staging, prod]
+      region:
+        required: true
+        type: string
+        default: 'eu-west-3'
+      namespace:
+        required: true
+        type: string
+      parameters:
+        required: true
+        type: string
+      kms_key_id:
+        required: false
+        type: string
+      enable_session_manager:
+        required: false
+        type: boolean
+        default: true
+      session_logging:
+        required: false
+        type: choice
+        options: [disabled, cloudwatch, s3, both]
+        default: 'disabled'
+      s3_bucket_logs:
+        required: false
+        type: string
+
+jobs:
+  terraform:
+    name: 'Terraform Apply - SSM'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./infra/ssm
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ github.event.inputs.region }}
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.7.0
+
+      - run: terraform init
+
+      - name: Terraform Plan
+        run: |
+          terraform plan \
+            -var="environment=${{ github.event.inputs.environment }}" \
+            -var="region=${{ github.event.inputs.region }}" \
+            -var="namespace=${{ github.event.inputs.namespace }}" \
+            -var='parameters=${{ github.event.inputs.parameters }}' \
+            -var="kms_key_id=${{ github.event.inputs.kms_key_id }}" \
+            -var="enable_session_manager=${{ github.event.inputs.enable_session_manager }}" \
+            -var="session_logging=${{ github.event.inputs.session_logging }}" \
+            -var="s3_bucket_logs=${{ github.event.inputs.s3_bucket_logs }}" \
+            -out=tfplan
+
+      - run: terraform apply -auto-approve tfplan
+
+      - name: Terraform Output
+        run: |
+          terraform output -json > outputs.json
+          echo "✅ Paramètres SSM créés !"
+          cat outputs.json | jq '.'

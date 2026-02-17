@@ -1,0 +1,1266 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SONATEL IAC — Déploiement Systems Manager</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Sora:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        /* STYLE IDENTIQUE - Couleur SSM #06B6D4 (Cyan) */
+        :root {
+            --navy-900: #060d1f;
+            --navy-800: #0a1628;
+            --navy-700: #0f2044;
+            --service-color: #06b6d4;
+            --service-rgb: 6, 182, 212;
+            --amber: #f59e0b;
+            --teal: #0ea5e9;
+            --green: #22c55e;
+            --red: #ef4444;
+            --white: #f8fafc;
+            --gray-300: #94a3b8;
+            --gray-200: #cbd5e1;
+            --card-bg: rgba(10, 22, 40, 0.92);
+            --border: rgba(14, 165, 233, 0.18);
+            --glow-service: 0 0 24px rgba(var(--service-rgb), 0.25);
+            --radius: 14px;
+            --radius-sm: 8px;
+        }
+
+        *, *::before, *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        html { scroll-behavior: smooth; }
+
+        body {
+            font-family: 'Sora', sans-serif;
+            background-color: var(--navy-900);
+            color: var(--white);
+            min-height: 100vh;
+            overflow-x: hidden;
+            position: relative;
+            zoom: 0.8;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background-image:
+                linear-gradient(rgba(14,165,233,0.04) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(14,165,233,0.04) 1px, transparent 1px);
+            background-size: 48px 48px;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        body::after {
+            content: '';
+            position: fixed;
+            width: 600px;
+            height: 600px;
+            background: radial-gradient(circle, rgba(6,182,212,0.07) 0%, transparent 70%);
+            top: -150px;
+            right: -150px;
+            pointer-events: none;
+            z-index: 0;
+            animation: orbFloat 10s ease-in-out infinite alternate;
+        }
+
+        @keyframes orbFloat {
+            from { transform: translate(0,0) scale(1); }
+            to   { transform: translate(-30px, 40px) scale(1.1); }
+        }
+
+        .orb-left {
+            position: fixed;
+            width: 500px;
+            height: 500px;
+            background: radial-gradient(circle, rgba(14,165,233,0.08) 0%, transparent 70%);
+            bottom: -100px;
+            left: -100px;
+            pointer-events: none;
+            z-index: 0;
+            animation: orbFloat 13s ease-in-out infinite alternate-reverse;
+        }
+
+        /* Styles identiques - copie complète du CSS précédent */
+        .topbar {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: rgba(6,13,31,0.85);
+            backdrop-filter: blur(16px);
+            border-bottom: 1px solid var(--border);
+            padding: 0 32px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .topbar-brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-family: 'Space Mono', monospace;
+            font-size: 13px;
+            letter-spacing: 0.05em;
+        }
+
+        .topbar-logo {
+            width: 32px;
+            height: 32px;
+            background: linear-gradient(135deg, var(--teal), var(--amber));
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+        }
+
+        .topbar-brand span { color: var(--gray-300); }
+        .topbar-brand strong { color: var(--white); }
+
+        .topbar-right {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .btn-back {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            background: rgba(6,182,212,0.1);
+            border: 1px solid rgba(6,182,212,0.3);
+            border-radius: 8px;
+            color: var(--service-color);
+            text-decoration: none;
+            font-size: 12px;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+        .btn-back:hover { background: rgba(6,182,212,0.15); }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--green);
+            box-shadow: 0 0 8px var(--green);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+
+        .topbar-service {
+            font-family: 'Space Mono', monospace;
+            font-size: 11px;
+            color: var(--gray-300);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .chip {
+            font-family: 'Space Mono', monospace;
+            font-size: 11px;
+            padding: 5px 12px;
+            border-radius: 100px;
+            border: 1px solid;
+        }
+
+        .chip-service {
+            color: var(--service-color);
+            border-color: rgba(var(--service-rgb), 0.4);
+            background: rgba(var(--service-rgb), 0.07);
+        }
+
+        .chip-amber {
+            color: var(--amber);
+            border-color: rgba(245,158,11,0.4);
+            background: rgba(245,158,11,0.07);
+        }
+
+        .chip-green {
+            color: var(--green);
+            border-color: rgba(34,197,94,0.4);
+            background: rgba(34,197,94,0.07);
+        }
+
+        .page-wrapper {
+            position: relative;
+            z-index: 1;
+            max-width: 1180px;
+            margin: 0 auto;
+            padding: 48px 24px 80px;
+            display: grid;
+            grid-template-columns: 1fr 380px;
+            gap: 32px;
+            align-items: start;
+        }
+
+        .page-header {
+            grid-column: 1 / -1;
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 24px;
+            margin-bottom: 8px;
+        }
+
+        .page-title-group { flex: 1; }
+
+        .page-eyebrow {
+            font-family: 'Space Mono', monospace;
+            font-size: 11px;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            color: var(--service-color);
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .page-eyebrow::before {
+            content: '';
+            width: 24px;
+            height: 2px;
+            background: var(--service-color);
+        }
+
+        .page-title {
+            font-size: 36px;
+            font-weight: 800;
+            line-height: 1.1;
+            letter-spacing: -0.02em;
+            background: linear-gradient(135deg, var(--white) 30%, var(--service-color));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .page-subtitle {
+            margin-top: 12px;
+            color: var(--gray-300);
+            font-size: 15px;
+            font-weight: 300;
+            line-height: 1.6;
+            max-width: 520px;
+        }
+
+        .region-chip {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 6px;
+            flex-shrink: 0;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            overflow: hidden;
+            backdrop-filter: blur(12px);
+            animation: fadeInUp 0.5s ease-out both;
+        }
+
+        .card-header {
+            padding: 24px 32px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .card-header-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            background: linear-gradient(135deg, rgba(var(--service-rgb), 0.2), rgba(var(--service-rgb), 0.05));
+            border: 1px solid rgba(var(--service-rgb), 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            flex-shrink: 0;
+        }
+
+        .card-header-text h3 {
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--white);
+            margin-bottom: 2px;
+        }
+
+        .card-header-text p {
+            font-size: 12px;
+            color: var(--gray-300);
+        }
+
+        .card-body { padding: 32px; }
+
+        .section-divider {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin: 24px 0 24px;
+        }
+
+        .section-divider-label {
+            font-family: 'Space Mono', monospace;
+            font-size: 10px;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: var(--gray-300);
+            white-space: nowrap;
+        }
+
+        .section-divider-line {
+            flex: 1;
+            height: 1px;
+            background: var(--border);
+        }
+
+        .field-group { margin-bottom: 24px; }
+
+        .field-label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--gray-200);
+        }
+
+        .field-label .req {
+            color: var(--amber);
+            font-size: 16px;
+            line-height: 1;
+        }
+
+        .field-hint {
+            font-size: 11px;
+            color: var(--gray-300);
+            margin-bottom: 8px;
+            font-weight: 300;
+            font-style: italic;
+        }
+
+        input[type="text"],
+        input[type="number"],
+        select,
+        textarea {
+            width: 100%;
+            background: rgba(15, 32, 68, 0.6);
+            border: 1.5px solid rgba(14,165,233,0.2);
+            color: var(--white);
+            border-radius: var(--radius-sm);
+            padding: 13px 16px;
+            font-family: 'Sora', sans-serif;
+            font-size: 14px;
+            transition: border-color 0.25s, box-shadow 0.25s, background 0.25s;
+            appearance: none;
+            outline: none;
+        }
+
+        input::placeholder { color: rgba(148,163,184,0.5); }
+
+        input:focus,
+        select:focus,
+        textarea:focus {
+            border-color: var(--service-color);
+            background: rgba(15, 32, 68, 0.9);
+            box-shadow: var(--glow-service);
+        }
+
+        textarea {
+            min-height: 100px;
+            resize: vertical;
+            font-family: 'Space Mono', monospace;
+            font-size: 12px;
+            line-height: 1.6;
+        }
+
+        .select-wrapper {
+            position: relative;
+        }
+
+        .select-wrapper::after {
+            content: '▾';
+            position: absolute;
+            right: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--service-color);
+            pointer-events: none;
+            font-size: 14px;
+        }
+
+        .select-wrapper select {
+            padding-right: 36px;
+            cursor: pointer;
+        }
+
+        select option {
+            background: var(--navy-800);
+            color: var(--white);
+        }
+
+        .toggle-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 16px;
+            background: rgba(15,32,68,0.5);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            margin-bottom: 12px;
+            cursor: pointer;
+            transition: background 0.2s, border-color 0.2s;
+        }
+
+        .toggle-row:hover {
+            background: rgba(15,32,68,0.8);
+            border-color: rgba(14,165,233,0.3);
+        }
+
+        .toggle-row:has(input:checked) {
+            border-color: rgba(var(--service-rgb), 0.5);
+            background: rgba(var(--service-rgb), 0.06);
+        }
+
+        .toggle-info { flex: 1; }
+        .toggle-info strong {
+            font-size: 13px;
+            font-weight: 600;
+            display: block;
+            margin-bottom: 2px;
+        }
+        .toggle-info span {
+            font-size: 11px;
+            color: var(--gray-300);
+        }
+
+        .toggle-switch {
+            position: relative;
+            width: 44px;
+            height: 24px;
+            flex-shrink: 0;
+        }
+
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            inset: 0;
+            background: rgba(148,163,184,0.2);
+            border-radius: 100px;
+            transition: 0.3s;
+            cursor: pointer;
+        }
+
+        .toggle-slider::before {
+            content: '';
+            position: absolute;
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background: var(--gray-300);
+            border-radius: 50%;
+            transition: 0.3s;
+        }
+
+        .toggle-switch input:checked + .toggle-slider {
+            background: rgba(var(--service-rgb), 0.4);
+        }
+
+        .toggle-switch input:checked + .toggle-slider::before {
+            transform: translateX(20px);
+            background: var(--service-color);
+            box-shadow: 0 0 8px var(--service-color);
+        }
+
+        .param-row {
+            display: grid;
+            grid-template-columns: 2fr 1fr 3fr auto;
+            gap: 10px;
+            margin-bottom: 10px;
+            align-items: start;
+        }
+
+        .param-row input,
+        .param-row select {
+            font-size: 13px;
+            padding: 10px 12px;
+        }
+
+        .btn-icon {
+            width: 38px;
+            height: 38px;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            background: rgba(15,32,68,0.6);
+            color: var(--white);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 18px;
+        }
+
+        .btn-icon:hover {
+            background: rgba(239,68,68,0.2);
+            border-color: var(--red);
+            color: var(--red);
+        }
+
+        .btn-add {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 14px;
+            background: rgba(var(--service-rgb), 0.1);
+            border: 1px solid rgba(var(--service-rgb), 0.3);
+            border-radius: 6px;
+            color: var(--service-color);
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-top: 8px;
+        }
+
+        .btn-add:hover {
+            background: rgba(var(--service-rgb), 0.15);
+        }
+
+        .btn-primary {
+            width: 100%;
+            padding: 17px;
+            background: linear-gradient(135deg, var(--service-color) 0%, rgba(var(--service-rgb), 0.8) 100%);
+            border: none;
+            border-radius: 10px;
+            color: var(--white);
+            font-family: 'Sora', sans-serif;
+            font-size: 15px;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .btn-primary::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -60%;
+            width: 200%;
+            height: 200%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
+            transform: rotate(30deg) translateX(-100%);
+            transition: transform 0.6s;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 16px 40px rgba(var(--service-rgb), 0.4);
+        }
+
+        .btn-primary:hover::before {
+            transform: rotate(30deg) translateX(200%);
+        }
+
+        .btn-primary:active { transform: translateY(0); }
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+        .spinner {
+            width: 18px;
+            height: 18px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-top-color: var(--white);
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+            display: none;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .side-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .info-panel {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            overflow: hidden;
+        }
+
+        .info-panel-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border);
+            font-size: 12px;
+            font-family: 'Space Mono', monospace;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--amber);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .info-item {
+            padding: 14px 20px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            gap: 12px;
+            align-items: flex-start;
+        }
+
+        .info-item:last-child { border-bottom: none; }
+
+        .info-item-icon {
+            font-size: 18px;
+            flex-shrink: 0;
+            margin-top: 1px;
+        }
+
+        .info-item-title {
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--white);
+            margin-bottom: 3px;
+        }
+
+        .info-item-desc {
+            font-size: 11px;
+            color: var(--gray-300);
+            line-height: 1.5;
+        }
+
+        .code-block {
+            background: rgba(6,13,31,0.8);
+            padding: 12px 16px;
+            border-radius: 6px;
+            font-family: 'Space Mono', monospace;
+            font-size: 11px;
+            color: #a8d8f0;
+            line-height: 1.6;
+            overflow-x: auto;
+            margin-top: 8px;
+        }
+
+        .alert-banner {
+            display: none;
+            padding: 12px 16px;
+            border-radius: var(--radius-sm);
+            font-size: 13px;
+            margin-bottom: 24px;
+            align-items: flex-start;
+            gap: 10px;
+        }
+
+        .alert-banner.error {
+            background: rgba(239,68,68,0.1);
+            border: 1px solid rgba(239,68,68,0.3);
+            color: #fca5a5;
+            display: flex;
+        }
+
+        .footer-note {
+            grid-column: 1 / -1;
+            text-align: center;
+            font-size: 11px;
+            color: var(--gray-300);
+            margin-top: 8px;
+            font-family: 'Space Mono', monospace;
+        }
+
+        .field-group-inline {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        @media (max-width: 900px) {
+            .page-wrapper {
+                grid-template-columns: 1fr;
+                padding: 32px 16px 60px;
+            }
+            .page-header {
+                flex-direction: column;
+                gap: 16px;
+            }
+            .field-group-inline {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .side-panel > * {
+            animation: fadeInUp 0.5s ease-out both;
+        }
+
+        .side-panel > *:nth-child(2) {
+            animation-delay: 0.08s;
+        }
+
+        .side-panel > *:nth-child(3) {
+            animation-delay: 0.16s;
+        }
+    </style>
+</head>
+<body>
+<div class="orb-left"></div>
+
+<header class="topbar">
+    <div class="topbar-brand">
+        <div class="topbar-logo">☁️</div>
+        <span>PROJET IAC</span> <strong>SONATEL</strong>
+    </div>
+    <div class="topbar-right">
+        <a href="/" class="btn-back">← Tous les services</a>
+        <div class="topbar-service">
+            <div class="status-dot"></div>
+            Services opérationnels
+        </div>
+        <div class="chip chip-service">
+            🔧 Systems Manager
+        </div>
+    </div>
+</header>
+
+<main class="page-wrapper">
+    <div class="page-header">
+        <div class="page-title-group">
+            <div class="page-eyebrow">Infrastructure as Code · AWS Systems Manager</div>
+            <h1 class="page-title">Parameter Store<br>& Session Manager</h1>
+            <p class="page-subtitle">
+                Stockez vos paramètres de configuration de manière sécurisée et connectez-vous à vos instances EC2 sans clés SSH.
+                Gratuit · Chiffrement KMS · Historique des versions.
+            </p>
+        </div>
+        <div class="region-chip">
+            <div class="chip chip-service">🔵 Systems Manager</div>
+            <div class="chip chip-green">💚 100% GRATUIT</div>
+            <div class="chip chip-amber">⚡ Terraform 1.x</div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <div class="card-header-icon">🔧</div>
+            <div class="card-header-text">
+                <h3>Configuration Parameter Store</h3>
+                <p>Créez des paramètres sécurisés pour votre application</p>
+            </div>
+        </div>
+
+        <div class="card-body">
+            <div id="alertBanner" class="alert-banner error">
+                <span>⚠️</span>
+                <span id="alertText"></span>
+            </div>
+
+            <form method="post" action="/trigger-ssm" id="ssmForm">
+
+                <!-- SECTION 1: CONFIGURATION -->
+                <div class="section-divider">
+                    <span class="section-divider-label">01 — Configuration Générale</span>
+                    <div class="section-divider-line"></div>
+                </div>
+
+                <div class="field-group-inline">
+                    <div class="field-group">
+                        <label class="field-label" for="environment">
+                            Environnement <span class="req">*</span>
+                        </label>
+                        <div class="select-wrapper">
+                            <select id="environment" name="environment" required>
+                                <option value="">— Choisir —</option>
+                                <option value="dev">🔧 Développement</option>
+                                <option value="staging">🧪 Staging</option>
+                                <option value="prod">🚀 Production</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="field-group">
+                        <label class="field-label" for="region">
+                            Région AWS <span class="req">*</span>
+                        </label>
+                        <div class="select-wrapper">
+                            <select id="region" name="region" required>
+                                <option value="eu-west-3">🇫🇷 eu-west-3 (Paris)</option>
+                                <option value="eu-west-1">🇮🇪 eu-west-1 (Irlande)</option>
+                                <option value="us-east-1">🇺🇸 us-east-1 (Virginie)</option>
+                                <option value="us-west-2">🇺🇸 us-west-2 (Oregon)</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="field-group">
+                    <label class="field-label" for="namespace">
+                        Namespace / Préfixe
+                        <span class="req">*</span>
+                    </label>
+                    <p class="field-hint">
+                        Préfixe pour organiser vos paramètres (ex: /sonatel/backend)
+                    </p>
+                    <input
+                        type="text"
+                        id="namespace"
+                        name="namespace"
+                        placeholder="/sonatel/backend"
+                        required
+                        pattern="^/[a-zA-Z0-9/_-]+$"
+                    >
+                </div>
+
+                <!-- SECTION 2: PARAMÈTRES -->
+                <div class="section-divider">
+                    <span class="section-divider-label">02 — Paramètres à Créer</span>
+                    <div class="section-divider-line"></div>
+                </div>
+
+                <p style="font-size: 12px; color: var(--gray-300); margin-bottom: 16px;">
+                    ℹ️ Ajoutez les paramètres que vous souhaitez stocker (configs, secrets, URLs, etc.)
+                </p>
+
+                <div id="parametersList">
+                    <div class="param-row">
+                        <input type="text" placeholder="Nom (ex: database_url)" class="param-name">
+                        <div class="select-wrapper">
+                            <select class="param-type">
+                                <option value="String">String</option>
+                                <option value="SecureString">SecureString 🔒</option>
+                                <option value="StringList">StringList</option>
+                            </select>
+                        </div>
+                        <input type="text" placeholder="Valeur" class="param-value">
+                        <button type="button" class="btn-icon" onclick="removeParam(this)">×</button>
+                    </div>
+                </div>
+
+                <button type="button" class="btn-add" onclick="addParam()">+ Ajouter un paramètre</button>
+
+                <!-- SECTION 3: OPTIONS -->
+                <div class="section-divider">
+                    <span class="section-divider-label">03 — Options Avancées</span>
+                    <div class="section-divider-line"></div>
+                </div>
+
+                <div class="toggle-row">
+                    <div class="toggle-info">
+                        <strong>Chiffrement KMS</strong>
+                        <span>Utiliser une clé KMS pour chiffrer les SecureStrings (recommandé en production)</span>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="use_kms" name="use_kms">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+
+                <div id="kmsField" style="display: none;">
+                    <div class="field-group">
+                        <label class="field-label" for="kms_key_id">
+                            KMS Key ID ou ARN
+                        </label>
+                        <p class="field-hint">Laissez vide pour utiliser la clé AWS managed</p>
+                        <input
+                            type="text"
+                            id="kms_key_id"
+                            name="kms_key_id"
+                            placeholder="alias/aws/ssm ou arn:aws:kms:..."
+                        >
+                    </div>
+                </div>
+
+                <div class="toggle-row">
+                    <div class="toggle-info">
+                        <strong>Session Manager</strong>
+                        <span>Activer Session Manager pour connexion SSH sans clés (FREE)</span>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="enable_session_manager" name="enable_session_manager" checked>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+
+                <div id="sessionManagerField" style="display: block;">
+                    <div class="field-group">
+                        <label class="field-label" for="session_logging">
+                            Logging des sessions
+                        </label>
+                        <div class="select-wrapper">
+                            <select id="session_logging" name="session_logging">
+                                <option value="disabled">Désactivé</option>
+                                <option value="cloudwatch">CloudWatch Logs</option>
+                                <option value="s3">Amazon S3</option>
+                                <option value="both">CloudWatch + S3</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div id="s3LoggingField" style="display: none;">
+                        <div class="field-group">
+                            <label class="field-label" for="s3_bucket_logs">
+                                Bucket S3 pour les logs
+                            </label>
+                            <input
+                                type="text"
+                                id="s3_bucket_logs"
+                                name="s3_bucket_logs"
+                                placeholder="ex: sonatel-ssm-session-logs"
+                            >
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SECTION 4: NOTIFICATIONS -->
+                <div class="section-divider">
+                    <span class="section-divider-label">04 — Notifications (optionnel)</span>
+                    <div class="section-divider-line"></div>
+                </div>
+
+                <div class="toggle-row">
+                    <div class="toggle-info">
+                        <strong>Notifications SNS</strong>
+                        <span>Recevoir des alertes lors des changements de paramètres</span>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="enable_notifications" name="enable_notifications">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+
+                <div id="notificationsField" style="display: none;">
+                    <div class="field-group">
+                        <label class="field-label" for="sns_topic_arn">
+                            Topic SNS ARN
+                        </label>
+                        <input
+                            type="text"
+                            id="sns_topic_arn"
+                            name="sns_topic_arn"
+                            placeholder="arn:aws:sns:eu-west-3:123456789012:ssm-changes"
+                        >
+                    </div>
+                </div>
+
+                <!-- SUBMIT -->
+                <div style="margin-top: 40px">
+                    <button type="submit" class="btn-primary" id="submitBtn">
+                        <span class="spinner" id="spinner"></span>
+                        <span id="btnText">🔧 Créer les paramètres SSM</span>
+                    </button>
+                </div>
+
+                <p style="text-align:center; margin-top:12px; font-size:11px; color: var(--gray-300); font-family:'Space Mono',monospace;">
+                    ⏱️ Le déploiement via GitHub Actions prend environ 1–2 minutes · 💚 100% GRATUIT
+                </p>
+
+            </form>
+        </div>
+    </div>
+
+    <!-- SIDE PANEL -->
+    <div class="side-panel">
+        <div class="info-panel">
+            <div class="info-panel-header">🏗️ Ressources Terraform créées</div>
+            <div class="info-item">
+                <div class="info-item-icon">📦</div>
+                <div>
+                    <div class="info-item-title">aws_ssm_parameter (multiple)</div>
+                    <div class="info-item-desc">Paramètres avec historique et tags</div>
+                </div>
+            </div>
+            <div class="info-item">
+                <div class="info-item-icon">🔐</div>
+                <div>
+                    <div class="info-item-title">aws_iam_role</div>
+                    <div class="info-item-desc">Rôle pour EC2 et Session Manager</div>
+                </div>
+            </div>
+            <div class="info-item">
+                <div class="info-item-icon">📋</div>
+                <div>
+                    <div class="info-item-title">aws_ssm_document</div>
+                    <div class="info-item-desc">Configuration Session Manager</div>
+                </div>
+            </div>
+            <div class="info-item">
+                <div class="info-item-icon">📊</div>
+                <div>
+                    <div class="info-item-title">aws_cloudwatch_log_group</div>
+                    <div class="info-item-desc">Logs des sessions (optionnel)</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="info-panel">
+            <div class="info-panel-header">💡 Types de Paramètres</div>
+            <div class="info-item">
+                <div class="info-item-icon">📝</div>
+                <div>
+                    <div class="info-item-title">String</div>
+                    <div class="info-item-desc">
+                        Texte simple · URLs, configs, noms<br>
+                        <strong>Gratuit</strong> · Non chiffré
+                    </div>
+                </div>
+            </div>
+            <div class="info-item">
+                <div class="info-item-icon">🔒</div>
+                <div>
+                    <div class="info-item-title">SecureString</div>
+                    <div class="info-item-desc">
+                        Données sensibles · Mots de passe, clés API<br>
+                        <strong>Gratuit</strong> · Chiffré avec KMS
+                    </div>
+                </div>
+            </div>
+            <div class="info-item">
+                <div class="info-item-icon">📋</div>
+                <div>
+                    <div class="info-item-title">StringList</div>
+                    <div class="info-item-desc">
+                        Liste de valeurs séparées par virgules<br>
+                        <strong>Gratuit</strong> · Ex: host1,host2,host3
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="info-panel">
+            <div class="info-panel-header">📊 Coûts (100% GRATUIT)</div>
+            <div style="padding: 16px 20px;">
+                <div class="code-block">
+<strong>Parameter Store</strong>
+→ Paramètres standard: GRATUIT
+→ Paramètres avancés: $0.05/mois
+→ API calls: GRATUIT (limite)
+
+<strong>Session Manager</strong>
+→ Sessions: GRATUIT
+→ Logging CloudWatch: facturé
+→ Logging S3: facturé
+
+<strong>KMS</strong>
+→ Clé AWS managed: GRATUIT
+→ Clé custom: $1/mois
+                </div>
+            </div>
+        </div>
+
+        <div class="info-panel">
+            <div class="info-panel-header">⚠️ Best Practices</div>
+            <div class="info-item">
+                <div class="info-item-icon">🔐</div>
+                <div>
+                    <div class="info-item-title">SecureString pour secrets</div>
+                    <div class="info-item-desc">Toujours utiliser SecureString pour mots de passe, tokens, clés API.</div>
+                </div>
+            </div>
+            <div class="info-item">
+                <div class="info-item-icon">📁</div>
+                <div>
+                    <div class="info-item-title">Hiérarchie des noms</div>
+                    <div class="info-item-desc">Utilisez des chemins: /app/env/param (ex: /backend/prod/db_password)</div>
+                </div>
+            </div>
+            <div class="info-item">
+                <div class="info-item-icon">🔄</div>
+                <div>
+                    <div class="info-item-title">Versioning automatique</div>
+                    <div class="info-item-desc">SSM garde l'historique des versions. Rollback facile en cas d'erreur.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <p class="footer-note">
+        PROJET IAC SONATEL · Systems Manager · Terraform + GitHub Actions · 💚 100% GRATUIT
+    </p>
+
+</main>
+
+<script>
+    const form = document.getElementById('ssmForm');
+    const submitBtn = document.getElementById('submitBtn');
+    const spinner = document.getElementById('spinner');
+    const btnText = document.getElementById('btnText');
+    const alert = document.getElementById('alertBanner');
+    const alertText = document.getElementById('alertText');
+
+    function showAlert(msg) {
+        alertText.textContent = msg;
+        alert.style.display = 'flex';
+        alert.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    function hideAlert() {
+        alert.style.display = 'none';
+    }
+
+    // Gestion des paramètres
+    function addParam() {
+        const container = document.getElementById('parametersList');
+        const row = document.createElement('div');
+        row.className = 'param-row';
+        row.innerHTML = `
+            <input type="text" placeholder="Nom" class="param-name">
+            <div class="select-wrapper">
+                <select class="param-type">
+                    <option value="String">String</option>
+                    <option value="SecureString">SecureString 🔒</option>
+                    <option value="StringList">StringList</option>
+                </select>
+            </div>
+            <input type="text" placeholder="Valeur" class="param-value">
+            <button type="button" class="btn-icon" onclick="removeParam(this)">×</button>
+        `;
+        container.appendChild(row);
+    }
+
+    function removeParam(btn) {
+        btn.parentElement.remove();
+    }
+
+    // Toggles
+    document.getElementById('use_kms').addEventListener('change', function() {
+        document.getElementById('kmsField').style.display = this.checked ? 'block' : 'none';
+    });
+
+    document.getElementById('enable_session_manager').addEventListener('change', function() {
+        document.getElementById('sessionManagerField').style.display = this.checked ? 'block' : 'none';
+    });
+
+    document.getElementById('session_logging').addEventListener('change', function() {
+        const value = this.value;
+        document.getElementById('s3LoggingField').style.display = 
+            (value === 's3' || value === 'both') ? 'block' : 'none';
+    });
+
+    document.getElementById('enable_notifications').addEventListener('change', function() {
+        document.getElementById('notificationsField').style.display = this.checked ? 'block' : 'none';
+    });
+
+    // Soumission
+    form.addEventListener('submit', function(e) {
+        hideAlert();
+
+        const environment = document.getElementById('environment').value;
+        const namespace = document.getElementById('namespace').value.trim();
+
+        if (!environment || !namespace) {
+            e.preventDefault();
+            showAlert("⚠️ Environnement et namespace obligatoires");
+            return false;
+        }
+
+        // Valider le namespace
+        if (!namespace.startsWith('/')) {
+            e.preventDefault();
+            showAlert("⚠️ Le namespace doit commencer par /");
+            return false;
+        }
+
+        // Collecter les paramètres
+        const params = [];
+        document.querySelectorAll('#parametersList .param-row').forEach(row => {
+            const name = row.querySelector('.param-name').value.trim();
+            const type = row.querySelector('.param-type').value;
+            const value = row.querySelector('.param-value').value.trim();
+            
+            if (name && value) {
+                params.push({ name, type, value });
+            }
+        });
+
+        if (params.length === 0) {
+            e.preventDefault();
+            showAlert("⚠️ Ajoutez au moins un paramètre");
+            return false;
+        }
+
+        // Ajouter les paramètres au form
+        const hiddenInput = document.createElement('input');
+        hiddenInput.type = 'hidden';
+        hiddenInput.name = 'parameters';
+        hiddenInput.value = JSON.stringify(params);
+        form.appendChild(hiddenInput);
+
+        // Confirmation pour production
+        if (environment === 'prod') {
+            if (!confirm('⚠️ Vous allez créer des paramètres en PRODUCTION. Confirmez-vous ?')) {
+                e.preventDefault();
+                return false;
+            }
+        }
+
+        spinner.style.display = 'block';
+        btnText.textContent = 'Création en cours...';
+        submitBtn.disabled = true;
+    });
+
+    // Toggle rows
+    document.querySelectorAll('.toggle-row').forEach(row => {
+        row.addEventListener('click', function(e) {
+            if (e.target.type === 'checkbox') return;
+            const cb = this.querySelector('input[type="checkbox"]');
+            if (cb) {
+                cb.checked = !cb.checked;
+                cb.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+        });
+    });
+
+    setTimeout(() => document.getElementById('environment').focus(), 400);
+</script>
+</body>
+</html>

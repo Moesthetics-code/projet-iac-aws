@@ -1,0 +1,1043 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SONATEL IAC — AWS Cost Explorer</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Sora:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        /* Couleur Cost Explorer #F97316 (Orange) */
+        :root {
+            --navy-900: #060d1f;
+            --navy-800: #0a1628;
+            --navy-700: #0f2044;
+            --service-color: #f97316;
+            --service-rgb: 249, 115, 22;
+            --amber: #f59e0b;
+            --teal: #0ea5e9;
+            --green: #22c55e;
+            --red: #ef4444;
+            --white: #f8fafc;
+            --gray-300: #94a3b8;
+            --gray-200: #cbd5e1;
+            --card-bg: rgba(10, 22, 40, 0.92);
+            --border: rgba(14, 165, 233, 0.18);
+            --glow-service: 0 0 24px rgba(var(--service-rgb), 0.25);
+            --radius: 14px;
+            --radius-sm: 8px;
+        }
+
+        *, *::before, *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        html { scroll-behavior: smooth; }
+
+        body {
+            font-family: 'Sora', sans-serif;
+            background-color: var(--navy-900);
+            color: var(--white);
+            min-height: 100vh;
+            overflow-x: hidden;
+            position: relative;
+            zoom: 0.8;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background-image:
+                linear-gradient(rgba(14,165,233,0.04) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(14,165,233,0.04) 1px, transparent 1px);
+            background-size: 48px 48px;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        body::after {
+            content: '';
+            position: fixed;
+            width: 600px;
+            height: 600px;
+            background: radial-gradient(circle, rgba(249,115,22,0.07) 0%, transparent 70%);
+            top: -150px;
+            right: -150px;
+            pointer-events: none;
+            z-index: 0;
+            animation: orbFloat 10s ease-in-out infinite alternate;
+        }
+
+        @keyframes orbFloat {
+            from { transform: translate(0,0) scale(1); }
+            to   { transform: translate(-30px, 40px) scale(1.1); }
+        }
+
+        .orb-left {
+            position: fixed;
+            width: 500px;
+            height: 500px;
+            background: radial-gradient(circle, rgba(14,165,233,0.08) 0%, transparent 70%);
+            bottom: -100px;
+            left: -100px;
+            pointer-events: none;
+            z-index: 0;
+            animation: orbFloat 13s ease-in-out infinite alternate-reverse;
+        }
+
+        /* Styles identiques précédents */
+        .topbar {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: rgba(6,13,31,0.85);
+            backdrop-filter: blur(16px);
+            border-bottom: 1px solid var(--border);
+            padding: 0 32px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .topbar-brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-family: 'Space Mono', monospace;
+            font-size: 13px;
+            letter-spacing: 0.05em;
+        }
+
+        .topbar-logo {
+            width: 32px;
+            height: 32px;
+            background: linear-gradient(135deg, var(--teal), var(--amber));
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+        }
+
+        .topbar-brand span { color: var(--gray-300); }
+        .topbar-brand strong { color: var(--white); }
+
+        .topbar-right {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .btn-back {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            background: rgba(249,115,22,0.1);
+            border: 1px solid rgba(249,115,22,0.3);
+            border-radius: 8px;
+            color: var(--service-color);
+            text-decoration: none;
+            font-size: 12px;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+        .btn-back:hover { background: rgba(249,115,22,0.15); }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--green);
+            box-shadow: 0 0 8px var(--green);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+
+        .topbar-service {
+            font-family: 'Space Mono', monospace;
+            font-size: 11px;
+            color: var(--gray-300);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .chip {
+            font-family: 'Space Mono', monospace;
+            font-size: 11px;
+            padding: 5px 12px;
+            border-radius: 100px;
+            border: 1px solid;
+        }
+
+        .chip-service {
+            color: var(--service-color);
+            border-color: rgba(var(--service-rgb), 0.4);
+            background: rgba(var(--service-rgb), 0.07);
+        }
+
+        .chip-green {
+            color: var(--green);
+            border-color: rgba(34,197,94,0.4);
+            background: rgba(34,197,94,0.07);
+        }
+
+        .page-wrapper {
+            position: relative;
+            z-index: 1;
+            max-width: 1180px;
+            margin: 0 auto;
+            padding: 48px 24px 80px;
+            display: grid;
+            grid-template-columns: 1fr 380px;
+            gap: 32px;
+            align-items: start;
+        }
+
+        .page-header {
+            grid-column: 1 / -1;
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 24px;
+            margin-bottom: 8px;
+        }
+
+        .page-title-group { flex: 1; }
+
+        .page-eyebrow {
+            font-family: 'Space Mono', monospace;
+            font-size: 11px;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            color: var(--service-color);
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .page-eyebrow::before {
+            content: '';
+            width: 24px;
+            height: 2px;
+            background: var(--service-color);
+        }
+
+        .page-title {
+            font-size: 36px;
+            font-weight: 800;
+            line-height: 1.1;
+            letter-spacing: -0.02em;
+            background: linear-gradient(135deg, var(--white) 30%, var(--service-color));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .page-subtitle {
+            margin-top: 12px;
+            color: var(--gray-300);
+            font-size: 15px;
+            font-weight: 300;
+            line-height: 1.6;
+            max-width: 520px;
+        }
+
+        .region-chip {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 6px;
+            flex-shrink: 0;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            overflow: hidden;
+            backdrop-filter: blur(12px);
+            animation: fadeInUp 0.5s ease-out both;
+        }
+
+        .card-header {
+            padding: 24px 32px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .card-header-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            background: linear-gradient(135deg, rgba(var(--service-rgb), 0.2), rgba(var(--service-rgb), 0.05));
+            border: 1px solid rgba(var(--service-rgb), 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            flex-shrink: 0;
+        }
+
+        .card-header-text h3 {
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--white);
+            margin-bottom: 2px;
+        }
+
+        .card-header-text p {
+            font-size: 12px;
+            color: var(--gray-300);
+        }
+
+        .card-body { padding: 32px; }
+
+        .section-divider {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin: 24px 0 24px;
+        }
+
+        .section-divider-label {
+            font-family: 'Space Mono', monospace;
+            font-size: 10px;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: var(--gray-300);
+            white-space: nowrap;
+        }
+
+        .section-divider-line {
+            flex: 1;
+            height: 1px;
+            background: var(--border);
+        }
+
+        .field-group { margin-bottom: 24px; }
+
+        .field-label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--gray-200);
+        }
+
+        .field-hint {
+            font-size: 11px;
+            color: var(--gray-300);
+            margin-bottom: 8px;
+            font-weight: 300;
+            font-style: italic;
+        }
+
+        input[type="text"],
+        select {
+            width: 100%;
+            background: rgba(15, 32, 68, 0.6);
+            border: 1.5px solid rgba(14,165,233,0.2);
+            color: var(--white);
+            border-radius: var(--radius-sm);
+            padding: 13px 16px;
+            font-family: 'Sora', sans-serif;
+            font-size: 14px;
+            transition: border-color 0.25s, box-shadow 0.25s, background 0.25s;
+            appearance: none;
+            outline: none;
+        }
+
+        input:focus, select:focus {
+            border-color: var(--service-color);
+            background: rgba(15, 32, 68, 0.9);
+            box-shadow: var(--glow-service);
+        }
+
+        .select-wrapper {
+            position: relative;
+        }
+
+        /* ── Champ email stylisé ───────────────────────────────────── */
+.input-icon-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.input-icon {
+    position: absolute;
+    left: 14px;
+    color: var(--service-color);
+    pointer-events: none;
+    flex-shrink: 0;
+    z-index: 1;
+}
+
+.input-icon-wrapper input[type="email"] {
+    padding-left: 42px;
+    padding-right: 40px;
+}
+
+.input-valid-icon {
+    position: absolute;
+    right: 14px;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--green);
+    opacity: 0;
+    transition: opacity 0.2s;
+    pointer-events: none;
+}
+
+.input-valid-icon.visible {
+    opacity: 1;
+}
+
+/* État valid */
+.input-icon-wrapper input[type="email"].valid {
+    border-color: rgba(34, 197, 94, 0.5);
+    box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.08);
+}
+
+/* État invalid */
+.input-icon-wrapper input[type="email"].invalid {
+    border-color: rgba(239, 68, 68, 0.5);
+    box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.08);
+}
+
+.field-hint.error {
+    color: var(--red);
+    font-style: normal;
+}
+
+        .select-wrapper::after {
+            content: '▾';
+            position: absolute;
+            right: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--service-color);
+            pointer-events: none;
+            font-size: 14px;
+        }
+
+        .select-wrapper select {
+            padding-right: 36px;
+            cursor: pointer;
+        }
+
+        select option {
+            background: var(--navy-800);
+            color: var(--white);
+        }
+
+        .toggle-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 16px;
+            background: rgba(15,32,68,0.5);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            margin-bottom: 12px;
+            cursor: pointer;
+            transition: background 0.2s, border-color 0.2s;
+        }
+
+        .toggle-row:hover {
+            background: rgba(15,32,68,0.8);
+            border-color: rgba(14,165,233,0.3);
+        }
+
+        .toggle-row:has(input:checked) {
+            border-color: rgba(var(--service-rgb), 0.5);
+            background: rgba(var(--service-rgb), 0.06);
+        }
+
+        .toggle-info { flex: 1; }
+        .toggle-info strong {
+            font-size: 13px;
+            font-weight: 600;
+            display: block;
+            margin-bottom: 2px;
+        }
+        .toggle-info span {
+            font-size: 11px;
+            color: var(--gray-300);
+        }
+
+        .toggle-switch {
+            position: relative;
+            width: 44px;
+            height: 24px;
+            flex-shrink: 0;
+        }
+
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            inset: 0;
+            background: rgba(148,163,184,0.2);
+            border-radius: 100px;
+            transition: 0.3s;
+            cursor: pointer;
+        }
+
+        .toggle-slider::before {
+            content: '';
+            position: absolute;
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background: var(--gray-300);
+            border-radius: 50%;
+            transition: 0.3s;
+        }
+
+        .toggle-switch input:checked + .toggle-slider {
+            background: rgba(var(--service-rgb), 0.4);
+        }
+
+        .toggle-switch input:checked + .toggle-slider::before {
+            transform: translateX(20px);
+            background: var(--service-color);
+            box-shadow: 0 0 8px var(--service-color);
+        }
+
+        .btn-primary {
+            width: 100%;
+            padding: 17px;
+            background: linear-gradient(135deg, var(--service-color) 0%, rgba(var(--service-rgb), 0.8) 100%);
+            border: none;
+            border-radius: 10px;
+            color: var(--white);
+            font-family: 'Sora', sans-serif;
+            font-size: 15px;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 16px 40px rgba(var(--service-rgb), 0.4);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+        .spinner {
+            width: 18px;
+            height: 18px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-top-color: var(--white);
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+            display: none;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .side-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .info-panel {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            overflow: hidden;
+        }
+
+        .info-panel-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border);
+            font-size: 12px;
+            font-family: 'Space Mono', monospace;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--amber);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .info-item {
+            padding: 14px 20px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            gap: 12px;
+            align-items: flex-start;
+        }
+
+        .info-item:last-child { border-bottom: none; }
+
+        .info-item-icon {
+            font-size: 18px;
+            flex-shrink: 0;
+            margin-top: 1px;
+        }
+
+        .info-item-title {
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--white);
+            margin-bottom: 3px;
+        }
+
+        .info-item-desc {
+            font-size: 11px;
+            color: var(--gray-300);
+            line-height: 1.5;
+        }
+
+        .code-block {
+            background: rgba(6,13,31,0.8);
+            padding: 12px 16px;
+            border-radius: 6px;
+            font-family: 'Space Mono', monospace;
+            font-size: 11px;
+            color: #a8d8f0;
+            line-height: 1.6;
+            overflow-x: auto;
+            margin-top: 8px;
+        }
+
+        .footer-note {
+            grid-column: 1 / -1;
+            text-align: center;
+            font-size: 11px;
+            color: var(--gray-300);
+            margin-top: 8px;
+            font-family: 'Space Mono', monospace;
+        }
+
+        .field-group-inline {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        @media (max-width: 900px) {
+            .page-wrapper {
+                grid-template-columns: 1fr;
+                padding: 32px 16px 60px;
+            }
+            .page-header {
+                flex-direction: column;
+                gap: 16px;
+            }
+            .field-group-inline {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .side-panel > * {
+            animation: fadeInUp 0.5s ease-out both;
+        }
+
+        .side-panel > *:nth-child(2) {
+            animation-delay: 0.08s;
+        }
+
+        .side-panel > *:nth-child(3) {
+            animation-delay: 0.16s;
+        }
+    </style>
+</head>
+<body>
+<div class="orb-left"></div>
+
+<header class="topbar">
+    <div class="topbar-brand">
+        <div class="topbar-logo">☁️</div>
+        <span>PROJET IAC</span> <strong>SONATEL</strong>
+    </div>
+    <div class="topbar-right">
+        <a href="/" class="btn-back">← Tous les services</a>
+        <div class="topbar-service">
+            <div class="status-dot"></div>
+            Services opérationnels
+        </div>
+        <div class="chip chip-service">
+            📊 Cost Explorer
+        </div>
+    </div>
+</header>
+
+<main class="page-wrapper">
+    <div class="page-header">
+        <div class="page-title-group">
+            <div class="page-eyebrow">Infrastructure as Code · AWS Cost Explorer</div>
+            <h1 class="page-title">Analyse des<br>Coûts AWS</h1>
+            <p class="page-subtitle">
+                Activez Cost Explorer pour visualiser vos coûts, analyser les tendances et optimiser vos dépenses.
+                API gratuite · Rapports personnalisés · Prévisions.
+            </p>
+        </div>
+        <div class="region-chip">
+            <div class="chip chip-service">📊 Cost Explorer</div>
+            <div class="chip chip-green">💚 API GRATUITE</div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <div class="card-header-icon">📊</div>
+            <div class="card-header-text">
+                <h3>Configuration Cost Explorer</h3>
+                <p>Activez l'analyse des coûts pour votre compte AWS</p>
+            </div>
+        </div>
+
+        <div class="card-body">
+            <form method="post" action="/trigger-cost-explorer" id="ceForm">
+
+                <div class="section-divider">
+                    <span class="section-divider-label">01 — Activation</span>
+                    <div class="section-divider-line"></div>
+                </div>
+
+                <div style="padding: 20px; background: rgba(249,115,22,0.1); border: 1px solid rgba(249,115,22,0.3); border-radius: 12px; margin-bottom: 24px;">
+                    <h4 style="font-size: 14px; font-weight: 700; color: var(--service-color); margin-bottom: 8px;">
+                        ℹ️ À propos de Cost Explorer
+                    </h4>
+                    <p style="font-size: 12px; color: var(--gray-300); line-height: 1.6;">
+                        Cost Explorer doit être activé manuellement dans la console AWS. Ce formulaire crée les ressources Terraform
+                        nécessaires pour interroger les coûts via l'API (gratuite). L'interface graphique coûte $0.01 par page vue.
+                    </p>
+                </div>
+
+                <div class="field-group">
+                    <label class="field-label" for="report_name">
+                        Nom du rapport
+                    </label>
+                    <p class="field-hint">Nom pour identifier vos rapports de coûts</p>
+                    <input
+                        type="text"
+                        id="report_name"
+                        name="report_name"
+                        placeholder="ex: monthly-cost-analysis"
+                        value="sonatel-cost-report"
+                    >
+                </div>
+
+                <div class="section-divider">
+                    <span class="section-divider-label">02 — Options d'Analyse</span>
+                    <div class="section-divider-line"></div>
+                </div>
+
+                <div class="toggle-row">
+                    <div class="toggle-info">
+                        <strong>Analyse par service</strong>
+                        <span>Voir les coûts par service AWS (S3, EC2, Lambda...)</span>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" name="by_service" checked>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+
+                <div class="toggle-row">
+                    <div class="toggle-info">
+                        <strong>Analyse par tag</strong>
+                        <span>Grouper les coûts par tags (Environment, Project...)</span>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" name="by_tag" checked>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+
+                <div class="toggle-row">
+                    <div class="toggle-info">
+                        <strong>Prévisions</strong>
+                        <span>Estimer les coûts futurs basés sur l'historique</span>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" name="enable_forecast" checked>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+
+                <div class="toggle-row">
+                    <div class="toggle-info">
+                        <strong>Rapports automatiques</strong>
+                        <span>Recevoir un rapport mensuel par email</span>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="enable_reports" name="enable_reports">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+
+                <div id="reportsField" style="display: none;">
+                    <!-- APRÈS -->
+                    <div class="field-group">
+                        <label class="field-label" for="report_email">
+                            Email pour les rapports
+                        </label>
+                        <p class="field-hint">Adresse destinataire des rapports automatiques</p>
+                        <div class="input-icon-wrapper">
+                            <svg class="input-icon" width="16" height="16" fill="none"
+                                stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7
+                                        a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+                            </svg>
+                            <input
+                                type="email"
+                                id="report_email"
+                                name="report_email"
+                                placeholder="admin@sonatel.sn"
+                                autocomplete="email"
+                            >
+                            <span class="input-valid-icon" id="emailValid">✓</span>
+                        </div>
+                        <p class="field-hint" id="emailHint" style="margin-top: 6px; display: none;">
+                            ⚠️ Adresse email invalide
+                        </p>
+                    </div>
+
+                    <div class="field-group">
+                        <label class="field-label" for="report_frequency">
+                            Fréquence
+                        </label>
+                        <div class="select-wrapper">
+                            <select id="report_frequency" name="report_frequency">
+                                <option value="MONTHLY">📅 Mensuel</option>
+                                <option value="WEEKLY">📊 Hebdomadaire</option>
+                                <option value="DAILY">📈 Quotidien</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="margin-top: 40px">
+                    <button type="submit" class="btn-primary" id="submitBtn">
+                        <span class="spinner" id="spinner"></span>
+                        <span id="btnText">📊 Activer Cost Explorer</span>
+                    </button>
+                </div>
+
+                <p style="text-align:center; margin-top:12px; font-size:11px; color: var(--gray-300); font-family:'Space Mono',monospace;">
+                    ⏱️ Activation en 1 minute · 💚 API gratuite · Interface UI $0.01/page
+                </p>
+
+            </form>
+        </div>
+    </div>
+
+    <div class="side-panel">
+        <div class="info-panel">
+            <div class="info-panel-header">🏗️ Ressources créées</div>
+            <div class="info-item">
+                <div class="info-item-icon">📊</div>
+                <div>
+                    <div class="info-item-title">IAM Policy (Cost Explorer API)</div>
+                    <div class="info-item-desc">Permissions pour interroger l'API</div>
+                </div>
+            </div>
+            <div class="info-item">
+                <div class="info-item-icon">📧</div>
+                <div>
+                    <div class="info-item-title">SNS Topic (rapports)</div>
+                    <div class="info-item-desc">Notifications des rapports</div>
+                </div>
+            </div>
+            <div class="info-item">
+                <div class="info-item-icon">⏰</div>
+                <div>
+                    <div class="info-item-title">EventBridge Rule</div>
+                    <div class="info-item-desc">Génération automatique rapports</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="info-panel">
+            <div class="info-panel-header">💡 Fonctionnalités</div>
+            <div class="info-item">
+                <div class="info-item-icon">📈</div>
+                <div>
+                    <div class="info-item-title">Historique 12 mois</div>
+                    <div class="info-item-desc">Visualisez vos coûts sur un an</div>
+                </div>
+            </div>
+            <div class="info-item">
+                <div class="info-item-icon">🔮</div>
+                <div>
+                    <div class="info-item-title">Prévisions 12 mois</div>
+                    <div class="info-item-desc">Estimez les coûts futurs</div>
+                </div>
+            </div>
+            <div class="info-item">
+                <div class="info-item-icon">🏷️</div>
+                <div>
+                    <div class="info-item-title">Groupement flexible</div>
+                    <div class="info-item-desc">Par service, région, tag, compte</div>
+                </div>
+            </div>
+            <div class="info-item">
+                <div class="info-item-icon">📊</div>
+                <div>
+                    <div class="info-item-title">Granularité</div>
+                    <div class="info-item-desc">Journalière, mensuelle, horaire</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="info-panel">
+            <div class="info-panel-header">📊 Coûts</div>
+            <div style="padding: 16px 20px;">
+                <div class="code-block">
+<strong>Cost Explorer</strong>
+→ API: GRATUITE
+→ Interface UI: $0.01/page vue
+→ Rapports CSV: GRATUIT
+
+<strong>Exemple</strong>
+→ 100 appels API/mois: $0
+→ 50 vues UI/mois: $0.50
+→ Rapports automatiques: $0
+                </div>
+            </div>
+        </div>
+
+        <div class="info-panel">
+            <div class="info-panel-header">⚠️ Important</div>
+            <div class="info-item">
+                <div class="info-item-icon">🕐</div>
+                <div>
+                    <div class="info-item-title">Délai d'activation</div>
+                    <div class="info-item-desc">Les données apparaissent 24h après activation</div>
+                </div>
+            </div>
+            <div class="info-item">
+                <div class="info-item-icon">👤</div>
+                <div>
+                    <div class="info-item-title">Activation manuelle requise</div>
+                    <div class="info-item-desc">Aller dans Billing → Cost Explorer → Activer</div>
+                </div>
+            </div>
+            <div class="info-item">
+                <div class="info-item-icon">🔐</div>
+                <div>
+                    <div class="info-item-title">Permissions requises</div>
+                    <div class="info-item-desc">Accès à AWS Billing Console</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <p class="footer-note">
+        PROJET IAC SONATEL · Cost Explorer · Terraform + GitHub Actions · 💚 API GRATUITE
+    </p>
+
+</main>
+
+<script>
+// Validation live du champ email
+const emailInput  = document.getElementById('report_email');
+const emailValid  = document.getElementById('emailValid');
+const emailHint   = document.getElementById('emailHint');
+
+emailInput.addEventListener('input', function () {
+    const val   = this.value.trim();
+    const isOk  = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val);
+
+    if (val === '') {
+        // Vide → état neutre
+        this.classList.remove('valid', 'invalid');
+        emailValid.classList.remove('visible');
+        emailHint.style.display = 'none';
+        return;
+    }
+
+    if (isOk) {
+        this.classList.add('valid');
+        this.classList.remove('invalid');
+        emailValid.classList.add('visible');
+        emailHint.style.display = 'none';
+    } else {
+        this.classList.add('invalid');
+        this.classList.remove('valid');
+        emailValid.classList.remove('visible');
+        emailHint.style.display  = 'block';
+        emailHint.classList.add('error');
+    }
+});
+
+    const form = document.getElementById('ceForm');
+    const submitBtn = document.getElementById('submitBtn');
+    const spinner = document.getElementById('spinner');
+    const btnText = document.getElementById('btnText');
+
+    document.getElementById('enable_reports').addEventListener('change', function() {
+        document.getElementById('reportsField').style.display = this.checked ? 'block' : 'none';
+    });
+
+    document.querySelectorAll('.toggle-row').forEach(row => {
+        row.addEventListener('click', function(e) {
+            if (e.target.type === 'checkbox') return;
+            const cb = this.querySelector('input[type="checkbox"]');
+            if (cb) {
+                cb.checked = !cb.checked;
+                cb.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+        });
+    });
+
+    form.addEventListener('submit', function(e) {
+        spinner.style.display = 'block';
+        btnText.textContent = 'Activation en cours...';
+        submitBtn.disabled = true;
+    });
+</script>
+</body>
+</html>

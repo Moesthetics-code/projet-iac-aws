@@ -1,0 +1,1010 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SONATEL IAC — AWS Budgets</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Sora:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        /* Couleur Budgets #EAB308 (Yellow/Amber) */
+        :root {
+            --navy-900: #060d1f;
+            --navy-800: #0a1628;
+            --navy-700: #0f2044;
+            --service-color: #eab308;
+            --service-rgb: 234, 179, 8;
+            --amber: #f59e0b;
+            --teal: #0ea5e9;
+            --green: #22c55e;
+            --red: #ef4444;
+            --white: #f8fafc;
+            --gray-300: #94a3b8;
+            --gray-200: #cbd5e1;
+            --card-bg: rgba(10, 22, 40, 0.92);
+            --border: rgba(14, 165, 233, 0.18);
+            --glow-service: 0 0 24px rgba(var(--service-rgb), 0.25);
+            --radius: 14px;
+            --radius-sm: 8px;
+        }
+
+        *, *::before, *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        html { scroll-behavior: smooth; }
+
+        body {
+            font-family: 'Sora', sans-serif;
+            background-color: var(--navy-900);
+            color: var(--white);
+            min-height: 100vh;
+            overflow-x: hidden;
+            position: relative;
+            zoom: 0.8;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background-image:
+                linear-gradient(rgba(14,165,233,0.04) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(14,165,233,0.04) 1px, transparent 1px);
+            background-size: 48px 48px;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        body::after {
+            content: '';
+            position: fixed;
+            width: 600px;
+            height: 600px;
+            background: radial-gradient(circle, rgba(234,179,8,0.07) 0%, transparent 70%);
+            top: -150px;
+            right: -150px;
+            pointer-events: none;
+            z-index: 0;
+            animation: orbFloat 10s ease-in-out infinite alternate;
+        }
+
+        @keyframes orbFloat {
+            from { transform: translate(0,0) scale(1); }
+            to   { transform: translate(-30px, 40px) scale(1.1); }
+        }
+
+        .orb-left {
+            position: fixed;
+            width: 500px;
+            height: 500px;
+            background: radial-gradient(circle, rgba(14,165,233,0.08) 0%, transparent 70%);
+            bottom: -100px;
+            left: -100px;
+            pointer-events: none;
+            z-index: 0;
+            animation: orbFloat 13s ease-in-out infinite alternate-reverse;
+        }
+
+        /* Styles identiques - CSS complet copié */
+        .topbar {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: rgba(6,13,31,0.85);
+            backdrop-filter: blur(16px);
+            border-bottom: 1px solid var(--border);
+            padding: 0 32px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .topbar-brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-family: 'Space Mono', monospace;
+            font-size: 13px;
+            letter-spacing: 0.05em;
+        }
+
+        .topbar-logo {
+            width: 32px;
+            height: 32px;
+            background: linear-gradient(135deg, var(--teal), var(--amber));
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+        }
+
+        .topbar-brand span { color: var(--gray-300); }
+        .topbar-brand strong { color: var(--white); }
+
+        .topbar-right {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .btn-back {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            background: rgba(234,179,8,0.1);
+            border: 1px solid rgba(234,179,8,0.3);
+            border-radius: 8px;
+            color: var(--service-color);
+            text-decoration: none;
+            font-size: 12px;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+        .btn-back:hover { background: rgba(234,179,8,0.15); }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--green);
+            box-shadow: 0 0 8px var(--green);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+
+        .topbar-service {
+            font-family: 'Space Mono', monospace;
+            font-size: 11px;
+            color: var(--gray-300);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .chip {
+            font-family: 'Space Mono', monospace;
+            font-size: 11px;
+            padding: 5px 12px;
+            border-radius: 100px;
+            border: 1px solid;
+        }
+
+        .chip-service {
+            color: var(--service-color);
+            border-color: rgba(var(--service-rgb), 0.4);
+            background: rgba(var(--service-rgb), 0.07);
+        }
+
+        .chip-green {
+            color: var(--green);
+            border-color: rgba(34,197,94,0.4);
+            background: rgba(34,197,94,0.07);
+        }
+
+        .page-wrapper {
+            position: relative;
+            z-index: 1;
+            max-width: 1180px;
+            margin: 0 auto;
+            padding: 48px 24px 80px;
+            display: grid;
+            grid-template-columns: 1fr 380px;
+            gap: 32px;
+            align-items: start;
+        }
+
+        .page-header {
+            grid-column: 1 / -1;
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 24px;
+            margin-bottom: 8px;
+        }
+
+        .page-title-group { flex: 1; }
+
+        .page-eyebrow {
+            font-family: 'Space Mono', monospace;
+            font-size: 11px;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            color: var(--service-color);
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .page-eyebrow::before {
+            content: '';
+            width: 24px;
+            height: 2px;
+            background: var(--service-color);
+        }
+
+        .page-title {
+            font-size: 36px;
+            font-weight: 800;
+            line-height: 1.1;
+            letter-spacing: -0.02em;
+            background: linear-gradient(135deg, var(--white) 30%, var(--service-color));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .page-subtitle {
+            margin-top: 12px;
+            color: var(--gray-300);
+            font-size: 15px;
+            font-weight: 300;
+            line-height: 1.6;
+            max-width: 520px;
+        }
+
+        .region-chip {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 6px;
+            flex-shrink: 0;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            overflow: hidden;
+            backdrop-filter: blur(12px);
+            animation: fadeInUp 0.5s ease-out both;
+        }
+
+        .card-header {
+            padding: 24px 32px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .card-header-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            background: linear-gradient(135deg, rgba(var(--service-rgb), 0.2), rgba(var(--service-rgb), 0.05));
+            border: 1px solid rgba(var(--service-rgb), 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            flex-shrink: 0;
+        }
+
+        .card-header-text h3 {
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--white);
+            margin-bottom: 2px;
+        }
+
+        .card-header-text p {
+            font-size: 12px;
+            color: var(--gray-300);
+        }
+
+        .card-body { padding: 32px; }
+
+        .section-divider {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin: 24px 0 24px;
+        }
+
+        .section-divider-label {
+            font-family: 'Space Mono', monospace;
+            font-size: 10px;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: var(--gray-300);
+            white-space: nowrap;
+        }
+
+        .section-divider-line {
+            flex: 1;
+            height: 1px;
+            background: var(--border);
+        }
+
+        .field-group { margin-bottom: 24px; }
+
+        .field-label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--gray-200);
+        }
+
+        .field-label .req {
+            color: var(--amber);
+            font-size: 16px;
+            line-height: 1;
+        }
+
+        .field-hint {
+            font-size: 11px;
+            color: var(--gray-300);
+            margin-bottom: 8px;
+            font-weight: 300;
+            font-style: italic;
+        }
+
+        input[type="text"],
+        input[type="number"],
+        input[type="email"],
+        select {
+            width: 100%;
+            background: rgba(15, 32, 68, 0.6);
+            border: 1.5px solid rgba(14,165,233,0.2);
+            color: var(--white);
+            border-radius: var(--radius-sm);
+            padding: 13px 16px;
+            font-family: 'Sora', sans-serif;
+            font-size: 14px;
+            transition: border-color 0.25s, box-shadow 0.25s, background 0.25s;
+            appearance: none;
+            outline: none;
+        }
+
+        input::placeholder { color: rgba(148,163,184,0.5); }
+
+        input:focus,
+        select:focus {
+            border-color: var(--service-color);
+            background: rgba(15, 32, 68, 0.9);
+            box-shadow: var(--glow-service);
+        }
+
+        .select-wrapper {
+            position: relative;
+        }
+
+        .select-wrapper::after {
+            content: '▾';
+            position: absolute;
+            right: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--service-color);
+            pointer-events: none;
+            font-size: 14px;
+        }
+
+        .select-wrapper select {
+            padding-right: 36px;
+            cursor: pointer;
+        }
+
+        select option {
+            background: var(--navy-800);
+            color: var(--white);
+        }
+
+        .alert-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr auto;
+            gap: 10px;
+            margin-bottom: 10px;
+            align-items: start;
+        }
+
+        .alert-row input,
+        .alert-row select {
+            font-size: 13px;
+            padding: 10px 12px;
+        }
+
+        .btn-icon {
+            width: 38px;
+            height: 38px;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            background: rgba(15,32,68,0.6);
+            color: var(--white);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 18px;
+        }
+
+        .btn-icon:hover {
+            background: rgba(239,68,68,0.2);
+            border-color: var(--red);
+            color: var(--red);
+        }
+
+        .btn-add {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 14px;
+            background: rgba(var(--service-rgb), 0.1);
+            border: 1px solid rgba(var(--service-rgb), 0.3);
+            border-radius: 6px;
+            color: var(--service-color);
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-top: 8px;
+        }
+
+        .btn-add:hover {
+            background: rgba(var(--service-rgb), 0.15);
+        }
+
+        .btn-primary {
+            width: 100%;
+            padding: 17px;
+            background: linear-gradient(135deg, var(--service-color) 0%, rgba(var(--service-rgb), 0.8) 100%);
+            border: none;
+            border-radius: 10px;
+            color: var(--navy-900);
+            font-family: 'Sora', sans-serif;
+            font-size: 15px;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .btn-primary::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -60%;
+            width: 200%;
+            height: 200%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
+            transform: rotate(30deg) translateX(-100%);
+            transition: transform 0.6s;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 16px 40px rgba(var(--service-rgb), 0.4);
+        }
+
+        .btn-primary:hover::before {
+            transform: rotate(30deg) translateX(200%);
+        }
+
+        .btn-primary:active { transform: translateY(0); }
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+        .spinner {
+            width: 18px;
+            height: 18px;
+            border: 2px solid rgba(6,13,31,0.3);
+            border-top-color: var(--navy-900);
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+            display: none;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .side-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .info-panel {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            overflow: hidden;
+        }
+
+        .info-panel-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border);
+            font-size: 12px;
+            font-family: 'Space Mono', monospace;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--amber);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .info-item {
+            padding: 14px 20px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            gap: 12px;
+            align-items: flex-start;
+        }
+
+        .info-item:last-child { border-bottom: none; }
+
+        .info-item-icon {
+            font-size: 18px;
+            flex-shrink: 0;
+            margin-top: 1px;
+        }
+
+        .info-item-title {
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--white);
+            margin-bottom: 3px;
+        }
+
+        .info-item-desc {
+            font-size: 11px;
+            color: var(--gray-300);
+            line-height: 1.5;
+        }
+
+        .code-block {
+            background: rgba(6,13,31,0.8);
+            padding: 12px 16px;
+            border-radius: 6px;
+            font-family: 'Space Mono', monospace;
+            font-size: 11px;
+            color: #a8d8f0;
+            line-height: 1.6;
+            overflow-x: auto;
+            margin-top: 8px;
+        }
+
+        .alert-banner {
+            display: none;
+            padding: 12px 16px;
+            border-radius: var(--radius-sm);
+            font-size: 13px;
+            margin-bottom: 24px;
+            align-items: flex-start;
+            gap: 10px;
+        }
+
+        .alert-banner.error {
+            background: rgba(239,68,68,0.1);
+            border: 1px solid rgba(239,68,68,0.3);
+            color: #fca5a5;
+            display: flex;
+        }
+
+        .footer-note {
+            grid-column: 1 / -1;
+            text-align: center;
+            font-size: 11px;
+            color: var(--gray-300);
+            margin-top: 8px;
+            font-family: 'Space Mono', monospace;
+        }
+
+        .field-group-inline {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        @media (max-width: 900px) {
+            .page-wrapper {
+                grid-template-columns: 1fr;
+                padding: 32px 16px 60px;
+            }
+            .page-header {
+                flex-direction: column;
+                gap: 16px;
+            }
+            .field-group-inline {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .side-panel > * {
+            animation: fadeInUp 0.5s ease-out both;
+        }
+
+        .side-panel > *:nth-child(2) {
+            animation-delay: 0.08s;
+        }
+
+        .side-panel > *:nth-child(3) {
+            animation-delay: 0.16s;
+        }
+    </style>
+</head>
+<body>
+<div class="orb-left"></div>
+
+<header class="topbar">
+    <div class="topbar-brand">
+        <div class="topbar-logo">☁️</div>
+        <span>PROJET IAC</span> <strong>SONATEL</strong>
+    </div>
+    <div class="topbar-right">
+        <a href="/" class="btn-back">← Tous les services</a>
+        <div class="topbar-service">
+            <div class="status-dot"></div>
+            Services opérationnels
+        </div>
+        <div class="chip chip-service">
+            💰 AWS Budgets
+        </div>
+    </div>
+</header>
+
+<main class="page-wrapper">
+    <div class="page-header">
+        <div class="page-title-group">
+            <div class="page-eyebrow">Infrastructure as Code · AWS Budgets</div>
+            <h1 class="page-title">Alertes de<br>Coûts AWS</h1>
+            <p class="page-subtitle">
+                Définissez des budgets mensuels et recevez des alertes automatiques par email.
+                Prévenez les dépassements · 2 budgets gratuits · Notifications en temps réel.
+            </p>
+        </div>
+        <div class="region-chip">
+            <div class="chip chip-service">💰 Budgets</div>
+            <div class="chip chip-green">💚 2 GRATUITS</div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <div class="card-header-icon">💰</div>
+            <div class="card-header-text">
+                <h3>Configuration du Budget</h3>
+                <p>Définissez votre budget mensuel et les seuils d'alerte</p>
+            </div>
+        </div>
+
+        <div class="card-body">
+            <div id="alertBanner" class="alert-banner error">
+                <span>⚠️</span>
+                <span id="alertText"></span>
+            </div>
+
+            <form method="post" action="/trigger-budgets" id="budgetForm">
+
+                <!-- SECTION 1: BUDGET -->
+                <div class="section-divider">
+                    <span class="section-divider-label">01 — Configuration du Budget</span>
+                    <div class="section-divider-line"></div>
+                </div>
+
+                <div class="field-group">
+                    <label class="field-label" for="budget_name">
+                        Nom du budget
+                        <span class="req">*</span>
+                    </label>
+                    <p class="field-hint">Nom descriptif pour identifier votre budget</p>
+                    <input
+                        type="text"
+                        id="budget_name"
+                        name="budget_name"
+                        placeholder="ex: budget-sonatel-monthly"
+                        required
+                        pattern="[a-zA-Z0-9_-]+"
+                    >
+                </div>
+
+                <div class="field-group-inline">
+                    <div class="field-group">
+                        <label class="field-label" for="budget_amount">
+                            Montant mensuel (USD)
+                            <span class="req">*</span>
+                        </label>
+                        <input
+                            type="number"
+                            id="budget_amount"
+                            name="budget_amount"
+                            placeholder="100"
+                            required
+                            min="0.01"
+                            step="0.01"
+                        >
+                    </div>
+
+                    <div class="field-group">
+                        <label class="field-label" for="time_unit">
+                            Période
+                        </label>
+                        <div class="select-wrapper">
+                            <select id="time_unit" name="time_unit">
+                                <option value="MONTHLY">📅 Mensuel</option>
+                                <option value="QUARTERLY">📊 Trimestriel</option>
+                                <option value="ANNUALLY">📈 Annuel</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SECTION 2: ALERTES -->
+                <div class="section-divider">
+                    <span class="section-divider-label">02 — Seuils d'Alerte</span>
+                    <div class="section-divider-line"></div>
+                </div>
+
+                <p style="font-size: 12px; color: var(--gray-300); margin-bottom: 16px;">
+                    ℹ️ Définissez les pourcentages déclenchant des alertes email
+                </p>
+
+                <div id="alertsList">
+                    <div class="alert-row">
+                        <input type="number" placeholder="50" value="50" class="alert-threshold" min="0" max="500">
+                        <input type="email" placeholder="admin@sonatel.sn" class="alert-email">
+                        <button type="button" class="btn-icon" onclick="removeAlert(this)">×</button>
+                    </div>
+                    <div class="alert-row">
+                        <input type="number" placeholder="80" value="80" class="alert-threshold" min="0" max="500">
+                        <input type="email" placeholder="admin@sonatel.sn" class="alert-email">
+                        <button type="button" class="btn-icon" onclick="removeAlert(this)">×</button>
+                    </div>
+                    <div class="alert-row">
+                        <input type="number" placeholder="100" value="100" class="alert-threshold" min="0" max="500">
+                        <input type="email" placeholder="admin@sonatel.sn" class="alert-email">
+                        <button type="button" class="btn-icon" onclick="removeAlert(this)">×</button>
+                    </div>
+                </div>
+
+                <button type="button" class="btn-add" onclick="addAlert()">+ Ajouter un seuil</button>
+
+                <!-- SUBMIT -->
+                <div style="margin-top: 40px">
+                    <button type="submit" class="btn-primary" id="submitBtn">
+                        <span class="spinner" id="spinner"></span>
+                        <span id="btnText">💰 Créer le budget AWS</span>
+                    </button>
+                </div>
+
+                <p style="text-align:center; margin-top:12px; font-size:11px; color: var(--gray-300); font-family:'Space Mono',monospace;">
+                    ⏱️ Déploiement en 1 minute · 💚 2 budgets gratuits, puis $0.60/mois
+                </p>
+
+            </form>
+        </div>
+    </div>
+
+    <!-- SIDE PANEL -->
+    <div class="side-panel">
+        <div class="info-panel">
+            <div class="info-panel-header">🏗️ Ressources créées</div>
+            <div class="info-item">
+                <div class="info-item-icon">💰</div>
+                <div>
+                    <div class="info-item-title">aws_budgets_budget</div>
+                    <div class="info-item-desc">Budget mensuel avec seuils</div>
+                </div>
+            </div>
+            <div class="info-item">
+                <div class="info-item-icon">📧</div>
+                <div>
+                    <div class="info-item-title">aws_sns_topic</div>
+                    <div class="info-item-desc">Notifications par email</div>
+                </div>
+            </div>
+            <div class="info-item">
+                <div class="info-item-icon">🔔</div>
+                <div>
+                    <div class="info-item-title">Alertes (multiple)</div>
+                    <div class="info-item-desc">Une alerte par seuil défini</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="info-panel">
+            <div class="info-panel-header">💡 Seuils Recommandés</div>
+            <div class="info-item">
+                <div class="info-item-icon">💚</div>
+                <div>
+                    <div class="info-item-title">50% - Alerte préventive</div>
+                    <div class="info-item-desc">Avertissement précoce, temps d'ajuster</div>
+                </div>
+            </div>
+            <div class="info-item">
+                <div class="info-item-icon">💛</div>
+                <div>
+                    <div class="info-item-title">80% - Alerte importante</div>
+                    <div class="info-item-desc">Action requise, proche de la limite</div>
+                </div>
+            </div>
+            <div class="info-item">
+                <div class="info-item-icon">❤️</div>
+                <div>
+                    <div class="info-item-title">100% - Alerte critique</div>
+                    <div class="info-item-desc">Budget atteint, dépassement imminent</div>
+                </div>
+            </div>
+            <div class="info-item">
+                <div class="info-item-icon">🔥</div>
+                <div>
+                    <div class="info-item-title">120% - Dépassement</div>
+                    <div class="info-item-desc">Budget dépassé, action immédiate</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="info-panel">
+            <div class="info-panel-header">📊 Coûts</div>
+            <div style="padding: 16px 20px;">
+                <div class="code-block">
+<strong>AWS Budgets</strong>
+→ 2 premiers budgets: GRATUIT
+→ Budgets suivants: $0.60/mois
+→ 62,000 jours budgets gratuits
+  (Budget de 1 jour = 1 jour budget)
+
+<strong>Exemple</strong>
+→ 1 budget mensuel = GRATUIT
+→ 5 budgets mensuels = $1.80/mois
+                </div>
+            </div>
+        </div>
+
+        <div class="info-panel">
+            <div class="info-panel-header">⚠️ Best Practices</div>
+            <div class="info-item">
+                <div class="info-item-icon">📧</div>
+                <div>
+                    <div class="info-item-title">Plusieurs contacts</div>
+                    <div class="info-item-desc">Ajoutez plusieurs emails pour éviter de manquer une alerte critique.</div>
+                </div>
+            </div>
+            <div class="info-item">
+                <div class="info-item-icon">🎯</div>
+                <div>
+                    <div class="info-item-title">Budgets par projet</div>
+                    <div class="info-item-desc">Créez un budget par environnement ou projet pour un suivi granulaire.</div>
+                </div>
+            </div>
+            <div class="info-item">
+                <div class="info-item-icon">📊</div>
+                <div>
+                    <div class="info-item-title">Révision mensuelle</div>
+                    <div class="info-item-desc">Ajustez vos budgets chaque mois selon l'évolution réelle des coûts.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <p class="footer-note">
+        PROJET IAC SONATEL · AWS Budgets · Terraform + GitHub Actions
+    </p>
+
+</main>
+
+<script>
+    const form = document.getElementById('budgetForm');
+    const submitBtn = document.getElementById('submitBtn');
+    const spinner = document.getElementById('spinner');
+    const btnText = document.getElementById('btnText');
+    const alert = document.getElementById('alertBanner');
+    const alertText = document.getElementById('alertText');
+
+    function showAlert(msg) {
+        alertText.textContent = msg;
+        alert.style.display = 'flex';
+        alert.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    function hideAlert() {
+        alert.style.display = 'none';
+    }
+
+    function addAlert() {
+        const container = document.getElementById('alertsList');
+        const row = document.createElement('div');
+        row.className = 'alert-row';
+        row.innerHTML = `
+            <input type="number" placeholder="%" class="alert-threshold" min="0" max="500">
+            <input type="email" placeholder="email@exemple.com" class="alert-email">
+            <button type="button" class="btn-icon" onclick="removeAlert(this)">×</button>
+        `;
+        container.appendChild(row);
+    }
+
+    function removeAlert(btn) {
+        if (document.querySelectorAll('#alertsList .alert-row').length > 1) {
+            btn.parentElement.remove();
+        } else {
+            showAlert("⚠️ Vous devez garder au moins un seuil d'alerte");
+        }
+    }
+
+    form.addEventListener('submit', function(e) {
+        hideAlert();
+
+        const budgetName = document.getElementById('budget_name').value.trim();
+        const budgetAmount = document.getElementById('budget_amount').value;
+
+        if (!budgetName || !budgetAmount) {
+            e.preventDefault();
+            showAlert("⚠️ Nom et montant obligatoires");
+            return false;
+        }
+
+        if (parseFloat(budgetAmount) <= 0) {
+            e.preventDefault();
+            showAlert("⚠️ Le montant doit être supérieur à 0");
+            return false;
+        }
+
+        // Collecter les alertes
+        const alerts = [];
+        document.querySelectorAll('#alertsList .alert-row').forEach(row => {
+            const threshold = row.querySelector('.alert-threshold').value.trim();
+            const email = row.querySelector('.alert-email').value.trim();
+            
+            if (threshold && email) {
+                alerts.push({ threshold: parseFloat(threshold), email });
+            }
+        });
+
+        if (alerts.length === 0) {
+            e.preventDefault();
+            showAlert("⚠️ Ajoutez au moins un seuil d'alerte avec email");
+            return false;
+        }
+
+        // Ajouter au form
+        const hiddenInput = document.createElement('input');
+        hiddenInput.type = 'hidden';
+        hiddenInput.name = 'alerts';
+        hiddenInput.value = JSON.stringify(alerts);
+        form.appendChild(hiddenInput);
+
+        spinner.style.display = 'block';
+        btnText.textContent = 'Création en cours...';
+        submitBtn.disabled = true;
+    });
+
+    setTimeout(() => document.getElementById('budget_name').focus(), 400);
+</script>
+</body>
+</html>

@@ -1,0 +1,164 @@
+{% extends 'base.html' %}
+
+{% block title %}Erreur — {{ service }} · SONATEL IAC{% endblock %}
+
+{% block topbar_label %}❌ Erreur de déploiement{% endblock %}
+
+{% block extra_styles %}
+<style>
+    .error-wrapper {
+        min-height: 60vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .error-card {
+        background: rgba(10, 22, 40, 0.95);
+        border: 1px solid rgba(239, 68, 68, 0.3);
+        border-radius: 20px;
+        max-width: 580px;
+        width: 100%;
+        padding: 48px 40px;
+        text-align: center;
+        box-shadow: 0 0 60px rgba(239, 68, 68, 0.08);
+        animation: fadeInUp 0.4s ease-out;
+    }
+
+    .error-icon {
+        font-size: 72px;
+        margin-bottom: 20px;
+        display: block;
+    }
+
+    .error-title {
+        font-size: 26px;
+        font-weight: 700;
+        color: #ef4444;
+        margin-bottom: 8px;
+    }
+
+    .error-service {
+        font-family: 'Space Mono', monospace;
+        font-size: 11px;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: var(--gray-300);
+        margin-bottom: 16px;
+    }
+
+    .error-message {
+        color: var(--gray-300);
+        font-size: 15px;
+        margin-bottom: 16px;
+        line-height: 1.6;
+    }
+
+    .error-details {
+        background: rgba(239, 68, 68, 0.08);
+        border: 1px solid rgba(239, 68, 68, 0.2);
+        border-radius: 10px;
+        padding: 14px 16px;
+        text-align: left;
+        font-family: 'Space Mono', monospace;
+        font-size: 11px;
+        color: #fca5a5;
+        word-break: break-word;
+        margin: 16px 0 28px;
+        line-height: 1.6;
+        white-space: pre-wrap;
+    }
+
+    .error-details-label {
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        color: rgba(239, 68, 68, 0.6);
+        margin-bottom: 6px;
+        font-family: 'Space Mono', monospace;
+    }
+
+    .btn-group {
+        display: flex;
+        gap: 12px;
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+
+    .btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 13px 24px;
+        border-radius: 10px;
+        text-decoration: none;
+        font-weight: 700;
+        font-size: 14px;
+        transition: all 0.2s;
+        cursor: pointer;
+        border: none;
+        font-family: 'Sora', sans-serif;
+    }
+
+    .btn-retry {
+        background: rgba(239, 68, 68, 0.15);
+        border: 1px solid rgba(239, 68, 68, 0.35);
+        color: #fca5a5;
+    }
+
+    .btn-retry:hover {
+        background: rgba(239, 68, 68, 0.25);
+        transform: translateY(-2px);
+    }
+
+    .btn-home {
+        background: linear-gradient(135deg, var(--teal), #0284c7);
+        color: #060d1f;
+    }
+
+    .btn-home:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(14, 165, 233, 0.3);
+    }
+
+    @media (max-width: 480px) {
+        .error-card { padding: 32px 20px; }
+        .error-icon { font-size: 56px; }
+        .error-title { font-size: 22px; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="error-wrapper">
+    <div class="error-card">
+
+        <span class="error-icon">❌</span>
+
+        {% if service %}
+        <div class="error-service">Service · {{ service }}</div>
+        {% endif %}
+
+        <h1 class="error-title">Erreur de déploiement</h1>
+
+        <p class="error-message"><strong>{{ message }}</strong></p>
+
+        {% if details %}
+        <div class="error-details">
+            <div class="error-details-label">Détails techniques</div>
+            {{ details }}
+        </div>
+        {% endif %}
+
+        <div class="btn-group">
+            <button onclick="history.back()" class="btn btn-retry">
+                🔄 Réessayer
+            </button>
+            <a href="/" class="btn btn-home">
+                🏠 Accueil
+            </a>
+        </div>
+
+    </div>
+</div>
+{% endblock %}

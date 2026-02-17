@@ -1,0 +1,292 @@
+name: Terraform CodeBuild
+
+on:
+  workflow_dispatch:
+    inputs:
+      # Base
+      project_name:
+        description: 'Nom du projet'
+        required: true
+        type: string
+      environment:
+        description: 'Environnement'
+        required: true
+        type: choice
+        options:
+          - dev
+          - staging
+          - prod
+      region:
+        description: 'Région AWS'
+        required: true
+        type: string
+        default: 'eu-west-3'
+      description:
+        description: 'Description du projet'
+        required: false
+        type: string
+      
+      # Source
+      source_type:
+        description: 'Type de source'
+        required: true
+        type: choice
+        options:
+          - CODECOMMIT
+          - CODEPIPELINE
+          - GITHUB
+          - GITHUB_ENTERPRISE
+          - BITBUCKET
+          - S3
+          - NO_SOURCE
+      source_location:
+        description: 'Emplacement source'
+        required: false
+        type: string
+      source_version:
+        description: 'Version/Branche'
+        required: false
+        type: string
+        default: 'main'
+      
+      # Environnement
+      environment_type:
+        description: 'Type environnement'
+        required: false
+        type: choice
+        options:
+          - LINUX_CONTAINER
+          - LINUX_GPU_CONTAINER
+          - ARM_CONTAINER
+          - WINDOWS_CONTAINER
+          - WINDOWS_SERVER_2019_CONTAINER
+        default: 'LINUX_CONTAINER'
+      image:
+        description: 'Image Docker'
+        required: true
+        type: string
+        default: 'aws/codebuild/standard:7.0'
+      compute_type:
+        description: 'Type de compute'
+        required: false
+        type: choice
+        options:
+          - BUILD_GENERAL1_SMALL
+          - BUILD_GENERAL1_MEDIUM
+          - BUILD_GENERAL1_LARGE
+          - BUILD_GENERAL1_2XLARGE
+        default: 'BUILD_GENERAL1_MEDIUM'
+      privileged_mode:
+        description: 'Mode privilégié'
+        required: false
+        type: boolean
+        default: false
+      
+      # Buildspec
+      buildspec_type:
+        description: 'Type de buildspec'
+        required: false
+        type: choice
+        options:
+          - file
+          - inline
+        default: 'file'
+      buildspec:
+        description: 'Buildspec inline'
+        required: false
+        type: string
+      buildspec_path:
+        description: 'Chemin buildspec'
+        required: false
+        type: string
+        default: 'buildspec.yml'
+      
+      # Variables d'environnement
+      environment_variables:
+        description: 'Variables env (JSON)'
+        required: false
+        type: string
+        default: '[]'
+      
+      # Artifacts
+      artifacts_type:
+        description: 'Type artifacts'
+        required: false
+        type: choice
+        options:
+          - NO_ARTIFACTS
+          - S3
+          - CODEPIPELINE
+        default: 'NO_ARTIFACTS'
+      artifacts_bucket:
+        description: 'Bucket artifacts'
+        required: false
+        type: string
+      artifacts_path:
+        description: 'Chemin artifacts'
+        required: false
+        type: string
+      
+      # Cache
+      enable_cache:
+        description: 'Activer cache'
+        required: false
+        type: boolean
+        default: false
+      cache_bucket:
+        description: 'Bucket cache'
+        required: false
+        type: string
+      cache_paths:
+        description: 'Chemins cache'
+        required: false
+        type: string
+      
+      # Logs
+      cloudwatch_logs_enabled:
+        description: 'Logs CloudWatch'
+        required: false
+        type: boolean
+        default: true
+      s3_logs_enabled:
+        description: 'Logs S3'
+        required: false
+        type: boolean
+        default: false
+      
+      # Timeouts
+      timeout_minutes:
+        description: 'Timeout (min)'
+        required: false
+        type: string
+        default: '60'
+      queued_timeout_minutes:
+        description: 'Queued timeout (min)'
+        required: false
+        type: string
+        default: '480'
+
+jobs:
+  terraform:
+    name: 'Terraform Apply - CodeBuild'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./infra/codebuild
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ github.event.inputs.region }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.7.0
+
+      - name: Terraform Init
+        run: terraform init
+
+      - name: Parse Environment Variables JSON
+        id: parse_env_vars
+        run: |
+          ENV_VARS='${{ github.event.inputs.environment_variables }}'
+          if [ -z "$ENV_VARS" ] || [ "$ENV_VARS" = "[]" ]; then
+            echo "env_vars_tfvars=" >> $GITHUB_OUTPUT
+          else
+            # Escape quotes for Terraform
+            ESCAPED=$(echo "$ENV_VARS" | sed 's/"/\\"/g')
+            echo "env_vars_tfvars=-var=environment_variables=$ESCAPED" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Parse Cache Paths
+        id: parse_cache
+        run: |
+          PATHS='${{ github.event.inputs.cache_paths }}'
+          if [ -z "$PATHS" ]; then
+            echo "cache_paths_tfvars=" >> $GITHUB_OUTPUT
+          else
+            # Convert newline-separated paths to JSON array
+            JSON_ARRAY=$(echo "$PATHS" | jq -R -s -c 'split("\n") | map(select(length > 0))')
+            echo "cache_paths_tfvars=-var=cache_paths=$JSON_ARRAY" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Terraform Plan
+        run: |
+          terraform plan \
+            -var="project_name=${{ github.event.inputs.project_name }}" \
+            -var="environment=${{ github.event.inputs.environment }}" \
+            -var="region=${{ github.event.inputs.region }}" \
+            -var="description=${{ github.event.inputs.description }}" \
+            -var="source_type=${{ github.event.inputs.source_type }}" \
+            -var="source_location=${{ github.event.inputs.source_location }}" \
+            -var="source_version=${{ github.event.inputs.source_version }}" \
+            -var="environment_type=${{ github.event.inputs.environment_type }}" \
+            -var="image=${{ github.event.inputs.image }}" \
+            -var="compute_type=${{ github.event.inputs.compute_type }}" \
+            -var="privileged_mode=${{ github.event.inputs.privileged_mode }}" \
+            -var="buildspec_type=${{ github.event.inputs.buildspec_type }}" \
+            -var="buildspec=${{ github.event.inputs.buildspec }}" \
+            -var="buildspec_path=${{ github.event.inputs.buildspec_path }}" \
+            -var="artifacts_type=${{ github.event.inputs.artifacts_type }}" \
+            -var="artifacts_bucket=${{ github.event.inputs.artifacts_bucket }}" \
+            -var="artifacts_path=${{ github.event.inputs.artifacts_path }}" \
+            -var="enable_cache=${{ github.event.inputs.enable_cache }}" \
+            -var="cache_bucket=${{ github.event.inputs.cache_bucket }}" \
+            -var="cloudwatch_logs_enabled=${{ github.event.inputs.cloudwatch_logs_enabled }}" \
+            -var="s3_logs_enabled=${{ github.event.inputs.s3_logs_enabled }}" \
+            -var="timeout_minutes=${{ github.event.inputs.timeout_minutes }}" \
+            -var="queued_timeout_minutes=${{ github.event.inputs.queued_timeout_minutes }}" \
+            ${{ steps.parse_env_vars.outputs.env_vars_tfvars }} \
+            ${{ steps.parse_cache.outputs.cache_paths_tfvars }} \
+            -out=tfplan
+
+      - name: Terraform Apply
+        run: terraform apply -auto-approve tfplan
+
+      - name: Terraform Output
+        id: output
+        run: |
+          terraform output -json > outputs.json
+          echo "outputs<<EOF" >> $GITHUB_OUTPUT
+          cat outputs.json >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Display Outputs
+        run: |
+          echo "═══════════════════════════════════════════════════════════"
+          echo "📊 OUTPUTS TERRAFORM - CODEBUILD"
+          echo "═══════════════════════════════════════════════════════════"
+          cat outputs.json | jq '.'
+          echo "═══════════════════════════════════════════════════════════"
+          echo "✅ Projet CodeBuild créé avec succès !"
+          echo "🔗 Console: $(cat outputs.json | jq -r '.console_url.value')"
+          echo "═══════════════════════════════════════════════════════════"
+
+      - name: Comment PR with Outputs
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const output = `#### CodeBuild Terraform Outputs 🏗️
+            
+            **Projet créé avec succès !**
+            
+            \`\`\`json
+            ${{ steps.output.outputs.outputs }}
+            \`\`\`
+            
+            *Pusher: @${{ github.actor }}, Action: \`${{ github.event_name }}\`*`;
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: output
+            })

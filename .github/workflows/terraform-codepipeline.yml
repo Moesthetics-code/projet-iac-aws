@@ -1,0 +1,351 @@
+name: Terraform CodePipeline
+
+on:
+  workflow_dispatch:
+    inputs:
+      # Base
+      pipeline_name:
+        description: 'Nom du pipeline'
+        required: true
+        type: string
+      environment:
+        description: 'Environnement'
+        required: true
+        type: choice
+        options:
+          - dev
+          - staging
+          - prod
+      region:
+        description: 'Région AWS'
+        required: true
+        type: string
+        default: 'eu-west-3'
+      description:
+        description: 'Description du pipeline'
+        required: false
+        type: string
+      
+      # Source
+      source_provider:
+        description: 'Provider source'
+        required: true
+        type: choice
+        options:
+          - GitHub
+          - GitHubEnterprise
+          - CodeCommit
+          - S3
+          - Bitbucket
+      github_connection_arn:
+        description: 'ARN connexion CodeStar (GitHub/Bitbucket)'
+        required: false
+        type: string
+      repository:
+        description: 'Repository (owner/repo)'
+        required: false
+        type: string
+      branch:
+        description: 'Branche'
+        required: false
+        type: string
+        default: 'main'
+      codecommit_repository_name:
+        description: 'Nom repository CodeCommit'
+        required: false
+        type: string
+      codecommit_branch:
+        description: 'Branche CodeCommit'
+        required: false
+        type: string
+        default: 'main'
+      s3_source_bucket:
+        description: 'Bucket S3 source'
+        required: false
+        type: string
+      s3_source_object_key:
+        description: 'Clé objet S3'
+        required: false
+        type: string
+      
+      # Build
+      enable_build:
+        description: 'Activer build'
+        required: false
+        type: boolean
+        default: true
+      build_project_name:
+        description: 'Projet CodeBuild'
+        required: false
+        type: string
+      build_environment:
+        description: 'Environnement de build'
+        required: false
+        type: string
+        default: 'ubuntu-standard-7.0'
+      build_compute_type:
+        description: 'Compute type'
+        required: false
+        type: string
+        default: 'small'
+      buildspec:
+        description: 'Buildspec inline'
+        required: false
+        type: string
+      build_env_vars:
+        description: 'Variables env build (JSON)'
+        required: false
+        type: string
+        default: '[]'
+      enable_build_cache:
+        description: 'Activer cache S3'
+        required: false
+        type: boolean
+        default: false
+      
+      # Test
+      enable_test:
+        description: 'Activer tests'
+        required: false
+        type: boolean
+        default: false
+      test_project_name:
+        description: 'Projet CodeBuild tests'
+        required: false
+        type: string
+      test_type:
+        description: 'Type de tests'
+        required: false
+        type: string
+        default: 'integration'
+      
+      # Approval
+      manual_approval:
+        description: 'Approbation manuelle'
+        required: false
+        type: boolean
+        default: false
+      approval_sns_topic_arn:
+        description: 'ARN topic SNS approbation'
+        required: false
+        type: string
+      approvers:
+        description: 'Emails approbateurs'
+        required: false
+        type: string
+      
+      # Deploy
+      deploy_provider:
+        description: 'Provider déploiement'
+        required: true
+        type: choice
+        options:
+          - ECS
+          - ECS-BlueGreen
+          - CodeDeploy
+          - Lambda
+          - S3
+          - CloudFormation
+          - EKS
+          - Beanstalk
+      ecs_cluster_name:
+        description: 'Cluster ECS'
+        required: false
+        type: string
+      ecs_service_name:
+        description: 'Service ECS'
+        required: false
+        type: string
+      ecs_image_definition_file:
+        description: 'Fichier image definition'
+        required: false
+        type: string
+        default: 'imagedefinitions.json'
+      codedeploy_application_name:
+        description: 'Application CodeDeploy'
+        required: false
+        type: string
+      codedeploy_deployment_group_name:
+        description: 'Deployment group'
+        required: false
+        type: string
+      lambda_function_name:
+        description: 'Fonction Lambda'
+        required: false
+        type: string
+      s3_deploy_bucket:
+        description: 'Bucket S3 destination'
+        required: false
+        type: string
+      s3_extract_archive:
+        description: 'Extraire archive S3'
+        required: false
+        type: boolean
+        default: true
+      
+      # Notifications
+      enable_notifications:
+        description: 'Activer notifications'
+        required: false
+        type: boolean
+        default: false
+      notification_sns_topic_arn:
+        description: 'ARN topic SNS notifications'
+        required: false
+        type: string
+      enable_cloudwatch_alarms:
+        description: 'Activer alarmes CloudWatch'
+        required: false
+        type: boolean
+        default: false
+      
+      # Tags
+      tags:
+        description: 'Tags AWS (JSON)'
+        required: false
+        type: string
+        default: '{}'
+      owner:
+        description: 'Propriétaire'
+        required: false
+        type: string
+      cost_center:
+        description: 'Centre de coûts'
+        required: false
+        type: string
+
+jobs:
+  terraform:
+    name: 'Terraform Apply - CodePipeline'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./infra/codepipeline
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ github.event.inputs.region }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.7.0
+
+      - name: Terraform Init
+        run: terraform init
+
+      - name: Parse Tags JSON
+        id: parse_tags
+        run: |
+          TAGS='${{ github.event.inputs.tags }}'
+          if [ -z "$TAGS" ] || [ "$TAGS" = "{}" ]; then
+            echo "tags_tfvars=" >> $GITHUB_OUTPUT
+          else
+            echo "tags_tfvars=-var='tags=$TAGS'" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Parse Build Env Vars JSON
+        id: parse_env_vars
+        run: |
+          ENV_VARS='${{ github.event.inputs.build_env_vars }}'
+          if [ -z "$ENV_VARS" ] || [ "$ENV_VARS" = "[]" ]; then
+            echo "env_vars_tfvars=" >> $GITHUB_OUTPUT
+          else
+            # Convertir le JSON array en map
+            echo "env_vars_tfvars=-var='build_env_vars=$ENV_VARS'" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Terraform Plan
+        run: |
+          terraform plan \
+            -var="pipeline_name=${{ github.event.inputs.pipeline_name }}" \
+            -var="environment=${{ github.event.inputs.environment }}" \
+            -var="region=${{ github.event.inputs.region }}" \
+            -var="description=${{ github.event.inputs.description }}" \
+            -var="source_provider=${{ github.event.inputs.source_provider }}" \
+            -var="github_connection_arn=${{ github.event.inputs.github_connection_arn }}" \
+            -var="repository=${{ github.event.inputs.repository }}" \
+            -var="branch=${{ github.event.inputs.branch }}" \
+            -var="codecommit_repository_name=${{ github.event.inputs.codecommit_repository_name }}" \
+            -var="codecommit_branch=${{ github.event.inputs.codecommit_branch }}" \
+            -var="s3_source_bucket=${{ github.event.inputs.s3_source_bucket }}" \
+            -var="s3_source_object_key=${{ github.event.inputs.s3_source_object_key }}" \
+            -var="enable_build=${{ github.event.inputs.enable_build }}" \
+            -var="build_project_name=${{ github.event.inputs.build_project_name }}" \
+            -var="build_environment=${{ github.event.inputs.build_environment }}" \
+            -var="build_compute_type=${{ github.event.inputs.build_compute_type }}" \
+            -var="buildspec=${{ github.event.inputs.buildspec }}" \
+            -var="enable_build_cache=${{ github.event.inputs.enable_build_cache }}" \
+            -var="enable_test=${{ github.event.inputs.enable_test }}" \
+            -var="test_project_name=${{ github.event.inputs.test_project_name }}" \
+            -var="test_type=${{ github.event.inputs.test_type }}" \
+            -var="manual_approval=${{ github.event.inputs.manual_approval }}" \
+            -var="approval_sns_topic_arn=${{ github.event.inputs.approval_sns_topic_arn }}" \
+            -var="deploy_provider=${{ github.event.inputs.deploy_provider }}" \
+            -var="ecs_cluster_name=${{ github.event.inputs.ecs_cluster_name }}" \
+            -var="ecs_service_name=${{ github.event.inputs.ecs_service_name }}" \
+            -var="ecs_image_definition_file=${{ github.event.inputs.ecs_image_definition_file }}" \
+            -var="codedeploy_application_name=${{ github.event.inputs.codedeploy_application_name }}" \
+            -var="codedeploy_deployment_group_name=${{ github.event.inputs.codedeploy_deployment_group_name }}" \
+            -var="lambda_function_name=${{ github.event.inputs.lambda_function_name }}" \
+            -var="s3_deploy_bucket=${{ github.event.inputs.s3_deploy_bucket }}" \
+            -var="s3_extract_archive=${{ github.event.inputs.s3_extract_archive }}" \
+            -var="enable_notifications=${{ github.event.inputs.enable_notifications }}" \
+            -var="notification_sns_topic_arn=${{ github.event.inputs.notification_sns_topic_arn }}" \
+            -var="enable_cloudwatch_alarms=${{ github.event.inputs.enable_cloudwatch_alarms }}" \
+            -var="owner=${{ github.event.inputs.owner }}" \
+            -var="cost_center=${{ github.event.inputs.cost_center }}" \
+            ${{ steps.parse_tags.outputs.tags_tfvars }} \
+            ${{ steps.parse_env_vars.outputs.env_vars_tfvars }} \
+            -out=tfplan
+
+      - name: Terraform Apply
+        run: terraform apply -auto-approve tfplan
+
+      - name: Terraform Output
+        id: output
+        run: |
+          terraform output -json > outputs.json
+          echo "outputs<<EOF" >> $GITHUB_OUTPUT
+          cat outputs.json >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Display Outputs
+        run: |
+          echo "═══════════════════════════════════════════════════════════"
+          echo "📊 OUTPUTS TERRAFORM - CODEPIPELINE"
+          echo "═══════════════════════════════════════════════════════════"
+          cat outputs.json | jq '.'
+          echo "═══════════════════════════════════════════════════════════"
+          echo "✅ Pipeline CodePipeline créé avec succès !"
+          echo "🔗 Console: $(cat outputs.json | jq -r '.pipeline_url.value')"
+          echo "═══════════════════════════════════════════════════════════"
+
+      - name: Comment PR with Outputs
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const output = `#### CodePipeline Terraform Outputs 🚀
+            
+            **Pipeline créé avec succès !**
+            
+            \`\`\`json
+            ${{ steps.output.outputs.outputs }}
+            \`\`\`
+            
+            *Pusher: @${{ github.actor }}, Action: \`${{ github.event_name }}\`*`;
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: output
+            })

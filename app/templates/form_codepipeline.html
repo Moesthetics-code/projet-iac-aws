@@ -1,0 +1,2028 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SONATEL IAC — Déploiement CodePipeline CI/CD</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Sora:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        /* STYLE IDENTIQUE À S3 - Copie exacte */
+        :root {
+            --navy-900: #060d1f;
+            --navy-800: #0a1628;
+            --navy-700: #0f2044;
+            --service-color: #3b82f6;
+            --service-rgb: 59, 130, 246;
+            --amber: #f59e0b;
+            --teal: #0ea5e9;
+            --green: #22c55e;
+            --red: #ef4444;
+            --white: #f8fafc;
+            --gray-300: #94a3b8;
+            --gray-200: #cbd5e1;
+            --card-bg: rgba(10, 22, 40, 0.92);
+            --border: rgba(14, 165, 233, 0.18);
+            --glow-service: 0 0 24px rgba(var(--service-rgb), 0.25);
+            --radius: 14px;
+            --radius-sm: 8px;
+        }
+
+        *, *::before, *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        html { scroll-behavior: smooth; }
+
+        body {
+            font-family: 'Sora', sans-serif;
+            background-color: var(--navy-900);
+            color: var(--white);
+            min-height: 100vh;
+            overflow-x: hidden;
+            position: relative;
+            zoom: 0.8;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background-image:
+                linear-gradient(rgba(14,165,233,0.04) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(14,165,233,0.04) 1px, transparent 1px);
+            background-size: 48px 48px;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        body::after {
+            content: '';
+            position: fixed;
+            width: 600px;
+            height: 600px;
+            background: radial-gradient(circle, rgba(59,130,246,0.07) 0%, transparent 70%);
+            top: -150px;
+            right: -150px;
+            pointer-events: none;
+            z-index: 0;
+            animation: orbFloat 10s ease-in-out infinite alternate;
+        }
+
+        @keyframes orbFloat {
+            from { transform: translate(0,0) scale(1); }
+            to   { transform: translate(-30px, 40px) scale(1.1); }
+        }
+
+        .orb-left {
+            position: fixed;
+            width: 500px;
+            height: 500px;
+            background: radial-gradient(circle, rgba(14,165,233,0.08) 0%, transparent 70%);
+            bottom: -100px;
+            left: -100px;
+            pointer-events: none;
+            z-index: 0;
+            animation: orbFloat 13s ease-in-out infinite alternate-reverse;
+        }
+
+        .topbar {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: rgba(6,13,31,0.85);
+            backdrop-filter: blur(16px);
+            border-bottom: 1px solid var(--border);
+            padding: 0 32px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .topbar-brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-family: 'Space Mono', monospace;
+            font-size: 13px;
+            letter-spacing: 0.05em;
+        }
+
+        .topbar-logo {
+            width: 32px;
+            height: 32px;
+            background: linear-gradient(135deg, var(--teal), var(--amber));
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+        }
+
+        .topbar-brand span { color: var(--gray-300); }
+        .topbar-brand strong { color: var(--white); }
+
+        .topbar-right {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .btn-back {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            background: rgba(59,130,246,0.1);
+            border: 1px solid rgba(59,130,246,0.3);
+            border-radius: 8px;
+            color: var(--service-color);
+            text-decoration: none;
+            font-size: 12px;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+        .btn-back:hover { background: rgba(59,130,246,0.15); }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--green);
+            box-shadow: 0 0 8px var(--green);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+
+        .topbar-service {
+            font-family: 'Space Mono', monospace;
+            font-size: 11px;
+            color: var(--gray-300);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .chip {
+            font-family: 'Space Mono', monospace;
+            font-size: 11px;
+            padding: 5px 12px;
+            border-radius: 100px;
+            border: 1px solid;
+        }
+
+        .chip-service {
+            color: var(--service-color);
+            border-color: rgba(var(--service-rgb), 0.4);
+            background: rgba(var(--service-rgb), 0.07);
+        }
+
+        .chip-amber {
+            color: var(--amber);
+            border-color: rgba(245,158,11,0.4);
+            background: rgba(245,158,11,0.07);
+        }
+
+        .page-wrapper {
+            position: relative;
+            z-index: 1;
+            max-width: 1180px;
+            margin: 0 auto;
+            padding: 48px 24px 80px;
+            display: grid;
+            grid-template-columns: 1fr 380px;
+            gap: 32px;
+            align-items: start;
+        }
+
+        .page-header {
+            grid-column: 1 / -1;
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 24px;
+            margin-bottom: 8px;
+        }
+
+        .page-title-group { flex: 1; }
+
+        .page-eyebrow {
+            font-family: 'Space Mono', monospace;
+            font-size: 11px;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            color: var(--service-color);
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .page-eyebrow::before {
+            content: '';
+            width: 24px;
+            height: 2px;
+            background: var(--service-color);
+        }
+
+        .page-title {
+            font-size: 36px;
+            font-weight: 800;
+            line-height: 1.1;
+            letter-spacing: -0.02em;
+            background: linear-gradient(135deg, var(--white) 30%, var(--service-color));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .page-subtitle {
+            margin-top: 12px;
+            color: var(--gray-300);
+            font-size: 15px;
+            font-weight: 300;
+            line-height: 1.6;
+            max-width: 520px;
+        }
+
+        .region-chip {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 6px;
+            flex-shrink: 0;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            overflow: hidden;
+            backdrop-filter: blur(12px);
+        }
+
+        .card-header {
+            padding: 24px 32px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .card-header-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            background: linear-gradient(135deg, rgba(var(--service-rgb), 0.2), rgba(var(--service-rgb), 0.05));
+            border: 1px solid rgba(var(--service-rgb), 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            flex-shrink: 0;
+        }
+
+        .card-header-text h3 {
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--white);
+            margin-bottom: 2px;
+        }
+
+        .card-header-text p {
+            font-size: 12px;
+            color: var(--gray-300);
+        }
+
+        .card-body { padding: 32px; }
+
+        .steps-track {
+            display: flex;
+            align-items: center;
+            gap: 0;
+            margin-bottom: 32px;
+        }
+
+        .step-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            position: relative;
+        }
+
+        .step-num {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            border: 2px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Space Mono', monospace;
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--gray-300);
+            background: var(--navy-800);
+            z-index: 1;
+            transition: all 0.3s;
+        }
+
+        .step-item.active .step-num {
+            border-color: var(--service-color);
+            color: var(--service-color);
+            box-shadow: 0 0 12px rgba(var(--service-rgb), 0.4);
+        }
+
+        .step-item.done .step-num {
+            background: var(--service-color);
+            border-color: var(--service-color);
+            color: var(--navy-900);
+        }
+
+        .step-label {
+            font-size: 10px;
+            font-family: 'Space Mono', monospace;
+            letter-spacing: 0.04em;
+            color: var(--gray-300);
+            white-space: nowrap;
+        }
+
+        .step-item.active .step-label { color: var(--service-color); }
+
+        .step-connector {
+            flex: 1;
+            height: 2px;
+            background: var(--border);
+            margin: 0 8px;
+            margin-bottom: 22px;
+        }
+
+        .section-divider {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin: 8px 0 24px;
+        }
+
+        .section-divider-label {
+            font-family: 'Space Mono', monospace;
+            font-size: 10px;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: var(--gray-300);
+            white-space: nowrap;
+        }
+
+        .section-divider-line {
+            flex: 1;
+            height: 1px;
+            background: var(--border);
+        }
+
+        .field-group { margin-bottom: 24px; }
+
+        .field-label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--gray-200);
+        }
+
+        .field-label .req {
+            color: var(--amber);
+            font-size: 16px;
+            line-height: 1;
+        }
+
+        .field-hint {
+            font-size: 11px;
+            color: var(--gray-300);
+            margin-bottom: 8px;
+            font-weight: 300;
+            font-style: italic;
+        }
+
+        input[type="text"],
+        input[type="number"],
+        select,
+        textarea {
+            width: 100%;
+            background: rgba(15, 32, 68, 0.6);
+            border: 1.5px solid rgba(14,165,233,0.2);
+            color: var(--white);
+            border-radius: var(--radius-sm);
+            padding: 13px 16px;
+            font-family: 'Sora', sans-serif;
+            font-size: 14px;
+            transition: border-color 0.25s, box-shadow 0.25s, background 0.25s;
+            appearance: none;
+            outline: none;
+        }
+
+        input::placeholder { color: rgba(148,163,184,0.5); }
+
+        input:focus,
+        select:focus,
+        textarea:focus {
+            border-color: var(--service-color);
+            background: rgba(15, 32, 68, 0.9);
+            box-shadow: var(--glow-service);
+        }
+
+        input.error-field { border-color: var(--red) !important; }
+
+        textarea {
+            min-height: 100px;
+            resize: vertical;
+            font-family: 'Space Mono', monospace;
+            font-size: 12px;
+            line-height: 1.6;
+        }
+
+        .select-wrapper {
+            position: relative;
+        }
+
+        .select-wrapper::after {
+            content: '▾';
+            position: absolute;
+            right: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--service-color);
+            pointer-events: none;
+            font-size: 14px;
+        }
+
+        .select-wrapper select {
+            padding-right: 36px;
+            cursor: pointer;
+        }
+
+        select option {
+            background: var(--navy-800);
+            color: var(--white);
+        }
+
+        .toggle-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 16px;
+            background: rgba(15,32,68,0.5);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            margin-bottom: 12px;
+            cursor: pointer;
+            transition: background 0.2s, border-color 0.2s;
+        }
+
+        .toggle-row:hover {
+            background: rgba(15,32,68,0.8);
+            border-color: rgba(14,165,233,0.3);
+        }
+
+        .toggle-row:has(input:checked) {
+            border-color: rgba(var(--service-rgb), 0.5);
+            background: rgba(var(--service-rgb), 0.06);
+        }
+
+        .toggle-info { flex: 1; }
+        .toggle-info strong {
+            font-size: 13px;
+            font-weight: 600;
+            display: block;
+            margin-bottom: 2px;
+        }
+        .toggle-info span {
+            font-size: 11px;
+            color: var(--gray-300);
+        }
+
+        .toggle-switch {
+            position: relative;
+            width: 44px;
+            height: 24px;
+            flex-shrink: 0;
+        }
+
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            inset: 0;
+            background: rgba(148,163,184,0.2);
+            border-radius: 100px;
+            transition: 0.3s;
+            cursor: pointer;
+        }
+
+        .toggle-slider::before {
+            content: '';
+            position: absolute;
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background: var(--gray-300);
+            border-radius: 50%;
+            transition: 0.3s;
+        }
+
+        .toggle-switch input:checked + .toggle-slider {
+            background: rgba(var(--service-rgb), 0.4);
+        }
+
+        .toggle-switch input:checked + .toggle-slider::before {
+            transform: translateX(20px);
+            background: var(--service-color);
+            box-shadow: 0 0 8px var(--service-color);
+        }
+
+        .env-vars-container {
+            display: none;
+            background: rgba(15,32,68,0.5);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            padding: 16px;
+            margin-top: 12px;
+        }
+
+        .env-vars-container.visible { display: block; }
+
+        .env-var-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr auto;
+            gap: 10px;
+            margin-bottom: 10px;
+            align-items: start;
+        }
+
+        .env-var-row:last-child { margin-bottom: 0; }
+
+        .env-var-row input {
+            font-size: 13px;
+            padding: 10px 12px;
+        }
+
+        .btn-icon {
+            width: 38px;
+            height: 38px;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            background: rgba(15,32,68,0.6);
+            color: var(--white);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 18px;
+        }
+
+        .btn-icon:hover {
+            background: rgba(239,68,68,0.2);
+            border-color: var(--red);
+            color: var(--red);
+        }
+
+        .btn-add {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 14px;
+            background: rgba(var(--service-rgb), 0.1);
+            border: 1px solid rgba(var(--service-rgb), 0.3);
+            border-radius: 6px;
+            color: var(--service-color);
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-top: 8px;
+        }
+
+        .btn-add:hover {
+            background: rgba(var(--service-rgb), 0.15);
+        }
+
+        .tags-input-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            background: rgba(15, 32, 68, 0.6);
+            border: 1.5px solid rgba(14,165,233,0.2);
+            border-radius: var(--radius-sm);
+            padding: 8px;
+            min-height: 48px;
+            align-items: center;
+            cursor: text;
+        }
+
+        .tags-input-container:focus-within {
+            border-color: var(--service-color);
+            box-shadow: var(--glow-service);
+        }
+
+        .tag-item {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            background: rgba(var(--service-rgb), 0.15);
+            border: 1px solid rgba(var(--service-rgb), 0.3);
+            border-radius: 6px;
+            font-size: 12px;
+            font-family: 'Space Mono', monospace;
+            color: var(--white);
+        }
+
+        .tag-remove {
+            cursor: pointer;
+            color: var(--gray-300);
+            font-weight: bold;
+            transition: color 0.2s;
+        }
+
+        .tag-remove:hover { color: var(--red); }
+
+        .tags-input-container input {
+            flex: 1;
+            min-width: 120px;
+            border: none;
+            background: transparent;
+            padding: 4px;
+            font-size: 13px;
+        }
+
+        .tags-input-container input:focus {
+            box-shadow: none;
+        }
+
+        .btn-primary {
+            width: 100%;
+            padding: 17px;
+            background: linear-gradient(135deg, var(--service-color) 0%, rgba(var(--service-rgb), 0.8) 100%);
+            border: none;
+            border-radius: 10px;
+            color: var(--white);
+            font-family: 'Sora', sans-serif;
+            font-size: 15px;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .btn-primary::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -60%;
+            width: 200%;
+            height: 200%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
+            transform: rotate(30deg) translateX(-100%);
+            transition: transform 0.6s;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 16px 40px rgba(var(--service-rgb), 0.4);
+        }
+
+        .btn-primary:hover::before {
+            transform: rotate(30deg) translateX(200%);
+        }
+
+        .btn-primary:active { transform: translateY(0); }
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+        .spinner {
+            width: 18px;
+            height: 18px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-top-color: var(--white);
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+            display: none;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .side-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .info-panel {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            overflow: hidden;
+        }
+
+        .info-panel-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border);
+            font-size: 12px;
+            font-family: 'Space Mono', monospace;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--amber);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .info-item {
+            padding: 14px 20px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            gap: 12px;
+            align-items: flex-start;
+        }
+
+        .info-item:last-child { border-bottom: none; }
+
+        .info-item-icon {
+            font-size: 18px;
+            flex-shrink: 0;
+            margin-top: 1px;
+        }
+
+        .info-item-title {
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--white);
+            margin-bottom: 3px;
+        }
+
+        .info-item-desc {
+            font-size: 11px;
+            color: var(--gray-300);
+            line-height: 1.5;
+        }
+
+        .code-block {
+            background: rgba(6,13,31,0.8);
+            padding: 12px 16px;
+            border-radius: 6px;
+            font-family: 'Space Mono', monospace;
+            font-size: 11px;
+            color: #a8d8f0;
+            line-height: 1.6;
+            overflow-x: auto;
+            margin-top: 8px;
+        }
+
+        .code-key { color: #7dd3fc; }
+        .code-val { color: #86efac; }
+
+        .validation-msg {
+            font-size: 11px;
+            margin-top: 5px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            min-height: 16px;
+        }
+
+        .validation-msg.error { color: #f87171; }
+        .validation-msg.success { color: var(--green); }
+        .validation-msg.warning { color: var(--amber); }
+
+        .alert-banner {
+            display: none;
+            padding: 12px 16px;
+            border-radius: var(--radius-sm);
+            font-size: 13px;
+            margin-bottom: 24px;
+            align-items: flex-start;
+            gap: 10px;
+        }
+
+        .alert-banner.error {
+            background: rgba(239,68,68,0.1);
+            border: 1px solid rgba(239,68,68,0.3);
+            color: #fca5a5;
+            display: flex;
+        }
+
+        .footer-note {
+            grid-column: 1 / -1;
+            text-align: center;
+            font-size: 11px;
+            color: var(--gray-300);
+            margin-top: 8px;
+            font-family: 'Space Mono', monospace;
+        }
+
+        .field-group-inline {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        @media (max-width: 900px) {
+            .page-wrapper {
+                grid-template-columns: 1fr;
+                padding: 32px 16px 60px;
+            }
+            .page-header {
+                flex-direction: column;
+                gap: 16px;
+            }
+            .field-group-inline {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .card {
+            animation: fadeInUp 0.5s ease-out both;
+        }
+
+        .side-panel > * {
+            animation: fadeInUp 0.5s ease-out both;
+        }
+
+        .side-panel > *:nth-child(2) {
+            animation-delay: 0.08s;
+        }
+
+        .side-panel > *:nth-child(3) {
+            animation-delay: 0.16s;
+        }
+    </style>
+</head>
+<body>
+<div class="orb-left"></div>
+
+<header class="topbar">
+    <div class="topbar-brand">
+        <div class="topbar-logo">☁️</div>
+        <span>PROJET IAC</span> <strong>SONATEL</strong>
+    </div>
+    <div class="topbar-right">
+        <a href="/" class="btn-back">← Tous les services</a>
+        <div class="topbar-service">
+            <div class="status-dot"></div>
+            Services opérationnels
+        </div>
+        <div class="chip chip-service">
+            🔄 CodePipeline
+        </div>
+    </div>
+</header>
+
+<main class="page-wrapper">
+    <div class="page-header">
+        <div class="page-title-group">
+            <div class="page-eyebrow">Infrastructure as Code · AWS CodePipeline</div>
+            <h1 class="page-title">Pipeline CI/CD<br>Professionnel</h1>
+            <p class="page-subtitle">
+                Créez un pipeline d'intégration et de déploiement continu de niveau production avec AWS CodePipeline.
+                Configuration complète : source, build, test, approbations et déploiement multi-environnements.
+            </p>
+        </div>
+        <div class="region-chip">
+            <div class="chip chip-service">🔵 CodePipeline</div>
+            <div class="chip chip-amber">⚡ Terraform 1.x</div>
+            <div class="chip chip-service">🔄 GitHub Actions</div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <div class="card-header-icon">🔄</div>
+            <div class="card-header-text">
+                <h3>Configuration Complète du Pipeline CI/CD</h3>
+                <p>Configuration professionnelle avec toutes les étapes et options avancées</p>
+            </div>
+        </div>
+
+        <div class="card-body">
+            <div class="steps-track" id="stepsTrack">
+                <div class="step-item active" data-step="1">
+                    <div class="step-num">1</div>
+                    <span class="step-label">Base</span>
+                </div>
+                <div class="step-connector"></div>
+                <div class="step-item" data-step="2">
+                    <div class="step-num">2</div>
+                    <span class="step-label">Source</span>
+                </div>
+                <div class="step-connector"></div>
+                <div class="step-item" data-step="3">
+                    <div class="step-num">3</div>
+                    <span class="step-label">Build</span>
+                </div>
+                <div class="step-connector"></div>
+                <div class="step-item" data-step="4">
+                    <div class="step-num">4</div>
+                    <span class="step-label">Deploy</span>
+                </div>
+            </div>
+
+            <div id="alertBanner" class="alert-banner error">
+                <span>⚠️</span>
+                <span id="alertText"></span>
+            </div>
+
+            <form method="post" action="/trigger-codepipeline" id="pipelineForm">
+
+                <!-- SECTION 1: CONFIGURATION DE BASE -->
+                <div class="section-divider">
+                    <span class="section-divider-label">01 — Configuration de Base</span>
+                    <div class="section-divider-line"></div>
+                </div>
+
+                <div class="field-group">
+                    <label class="field-label" for="pipeline_name">
+                        Nom du pipeline
+                        <span class="req">*</span>
+                    </label>
+                    <p class="field-hint">
+                        1-100 caractères · alphanumériques, tirets et underscores uniquement · doit être unique
+                    </p>
+                    <input
+                        type="text"
+                        id="pipeline_name"
+                        name="pipeline_name"
+                        placeholder="ex: sonatel-backend-api-pipeline"
+                        required
+                        maxlength="100"
+                        pattern="[a-zA-Z0-9_-]+"
+                    >
+                    <div class="validation-msg" id="nameValidation"></div>
+                </div>
+
+                <div class="field-group-inline">
+                    <div class="field-group">
+                        <label class="field-label" for="environment">
+                            Environnement <span class="req">*</span>
+                        </label>
+                        <div class="select-wrapper">
+                            <select id="environment" name="environment" required>
+                                <option value="">— Choisir —</option>
+                                <option value="dev">🔧 Développement</option>
+                                <option value="staging">🧪 Staging / Préproduction</option>
+                                <option value="prod">🚀 Production</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="field-group">
+                        <label class="field-label" for="region">
+                            Région AWS <span class="req">*</span>
+                        </label>
+                        <div class="select-wrapper">
+                            <select id="region" name="region" required>
+                                <option value="eu-west-3">🇫🇷 eu-west-3 (Paris)</option>
+                                <option value="eu-west-1">🇮🇪 eu-west-1 (Irlande)</option>
+                                <option value="us-east-1">🇺🇸 us-east-1 (Virginie)</option>
+                                <option value="us-west-2">🇺🇸 us-west-2 (Oregon)</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="field-group">
+                    <label class="field-label" for="description">
+                        Description du pipeline
+                    </label>
+                    <p class="field-hint">Décrivez l'objectif de ce pipeline (optionnel mais recommandé)</p>
+                    <textarea
+                        id="description"
+                        name="description"
+                        placeholder="ex: Pipeline CI/CD pour l'API backend principale. Build Docker, tests unitaires/intégration, déploiement ECS."
+                        rows="3"
+                    ></textarea>
+                </div>
+
+                <!-- SECTION 2: SOURCE -->
+                <div class="section-divider">
+                    <span class="section-divider-label">02 — Configuration Source</span>
+                    <div class="section-divider-line"></div>
+                </div>
+
+                <div class="field-group">
+                    <label class="field-label" for="source_provider">
+                        Provider source <span class="req">*</span>
+                    </label>
+                    <p class="field-hint">Où est hébergé votre code source ?</p>
+                    <div class="select-wrapper">
+                        <select id="source_provider" name="source_provider" required>
+                            <option value="">— Choisir le provider —</option>
+                            <option value="GitHub">🐙 GitHub</option>
+                            <option value="GitHubEnterprise">🏢 GitHub Enterprise</option>
+                            <option value="CodeCommit">☁️ AWS CodeCommit</option>
+                            <option value="S3">🪣 Amazon S3</option>
+                            <option value="Bitbucket">🌊 Bitbucket Cloud</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div id="githubFields" style="display: none;">
+                    <div class="field-group">
+                        <label class="field-label" for="github_connection">
+                            Connexion GitHub <span class="req">*</span>
+                        </label>
+                        <p class="field-hint">ARN de la connexion AWS CodeStar (doit être créée au préalable)</p>
+                        <input
+                            type="text"
+                            id="github_connection"
+                            name="github_connection"
+                            placeholder="arn:aws:codestar-connections:eu-west-3:123456789012:connection/xxxxx"
+                        >
+                    </div>
+
+                    <div class="field-group">
+                        <label class="field-label" for="repository">
+                            Repository <span class="req">*</span>
+                        </label>
+                        <p class="field-hint">Format: owner/repo (ex: Moesthetics-code/projet-iac-aws)</p>
+                        <input
+                            type="text"
+                            id="repository"
+                            name="repository"
+                            placeholder="ex: Moesthetics-code/backend-api"
+                            required
+                        >
+                    </div>
+
+                    <div class="field-group-inline">
+                        <div class="field-group">
+                            <label class="field-label" for="branch">
+                                Branche <span class="req">*</span>
+                            </label>
+                            <input
+                                type="text"
+                                id="branch"
+                                name="branch"
+                                placeholder="ex: main"
+                                value="main"
+                                required
+                            >
+                        </div>
+
+                        <div class="field-group">
+                            <label class="field-label" for="trigger_on_push">
+                                Déclenchement
+                            </label>
+                            <div class="select-wrapper">
+                                <select id="trigger_on_push" name="trigger_on_push">
+                                    <option value="auto">Automatique (à chaque push)</option>
+                                    <option value="manual">Manuel uniquement</option>
+                                    <option value="webhook">Webhook personnalisé</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="codecommitFields" style="display: none;">
+                    <div class="field-group">
+                        <label class="field-label" for="codecommit_repository">
+                            Nom du repository CodeCommit <span class="req">*</span>
+                        </label>
+                        <input
+                            type="text"
+                            id="codecommit_repository"
+                            name="codecommit_repository"
+                            placeholder="ex: backend-api"
+                        >
+                    </div>
+
+                    <div class="field-group">
+                        <label class="field-label" for="codecommit_branch">
+                            Branche <span class="req">*</span>
+                        </label>
+                        <input
+                            type="text"
+                            id="codecommit_branch"
+                            name="codecommit_branch"
+                            value="main"
+                        >
+                    </div>
+                </div>
+
+                <div id="s3Fields" style="display: none;">
+                    <div class="field-group">
+                        <label class="field-label" for="s3_bucket">
+                            Bucket S3 source <span class="req">*</span>
+                        </label>
+                        <input
+                            type="text"
+                            id="s3_bucket"
+                            name="s3_bucket"
+                            placeholder="ex: sonatel-source-artifacts"
+                        >
+                    </div>
+
+                    <div class="field-group">
+                        <label class="field-label" for="s3_object_key">
+                            Clé de l'objet (chemin du fichier ZIP) <span class="req">*</span>
+                        </label>
+                        <input
+                            type="text"
+                            id="s3_object_key"
+                            name="s3_object_key"
+                            placeholder="ex: releases/backend-v1.0.0.zip"
+                        >
+                    </div>
+                </div>
+
+                <!-- SECTION 3: BUILD -->
+                <div class="section-divider">
+                    <span class="section-divider-label">03 — Étape de Build</span>
+                    <div class="section-divider-line"></div>
+                </div>
+
+                <div class="toggle-row">
+                    <div class="toggle-info">
+                        <strong>Activer l'étape de build</strong>
+                        <span>Utiliser AWS CodeBuild pour compiler, tester et packager le code</span>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="enable_build" name="enable_build" checked>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+
+                <div id="buildSection" style="display: block;">
+                    <div class="field-group">
+                        <label class="field-label" for="build_project">
+                            Projet CodeBuild <span class="req">*</span>
+                        </label>
+                        <p class="field-hint">
+                            Nom du projet CodeBuild existant ou à créer. Si nouveau, sera créé avec les specs ci-dessous.
+                        </p>
+                        <input
+                            type="text"
+                            id="build_project"
+                            name="build_project"
+                            placeholder="ex: sonatel-backend-build"
+                        >
+                    </div>
+
+                    <div class="field-group-inline">
+                        <div class="field-group">
+                            <label class="field-label" for="build_env">
+                                Environnement de build
+                            </label>
+                            <div class="select-wrapper">
+                                <select id="build_env" name="build_env">
+                                    <option value="ubuntu-standard-7.0">Ubuntu 22.04 Standard 7.0</option>
+                                    <option value="ubuntu-standard-6.0">Ubuntu 20.04 Standard 6.0</option>
+                                    <option value="amazonlinux-2023">Amazon Linux 2023</option>
+                                    <option value="windows-server-2022">Windows Server 2022</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="field-group">
+                            <label class="field-label" for="build_compute">
+                                Compute type
+                            </label>
+                            <div class="select-wrapper">
+                                <select id="build_compute" name="build_compute">
+                                    <option value="small">Small (3GB RAM, 2 vCPU)</option>
+                                    <option value="medium">Medium (7GB RAM, 4 vCPU)</option>
+                                    <option value="large">Large (15GB RAM, 8 vCPU)</option>
+                                    <option value="2xlarge">2XLarge (145GB RAM, 72 vCPU)</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="field-group">
+                        <label class="field-label" for="buildspec">
+                            Buildspec
+                        </label>
+                        <p class="field-hint">
+                            Laissez vide pour utiliser buildspec.yml à la racine du repo, ou collez votre buildspec inline
+                        </p>
+                        <textarea
+                            id="buildspec"
+                            name="buildspec"
+                            placeholder="version: 0.2&#10;phases:&#10;  pre_build:&#10;    commands:&#10;      - npm install&#10;  build:&#10;    commands:&#10;      - npm run build&#10;      - npm test"
+                            rows="6"
+                        ></textarea>
+                    </div>
+
+                    <div class="toggle-row">
+                        <div class="toggle-info">
+                            <strong>Variables d'environnement</strong>
+                            <span>Ajouter des variables pour le build (clés API, flags...)</span>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="enable_build_env_vars" name="enable_build_env_vars">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+
+                    <div id="buildEnvVarsContainer" class="env-vars-container">
+                        <div id="buildEnvVarsList">
+                            <div class="env-var-row">
+                                <input type="text" placeholder="Clé (ex: NODE_ENV)" class="env-var-key">
+                                <input type="text" placeholder="Valeur (ex: production)" class="env-var-value">
+                                <button type="button" class="btn-icon" onclick="removeEnvVar(this)">×</button>
+                            </div>
+                        </div>
+                        <button type="button" class="btn-add" onclick="addBuildEnvVar()">+ Ajouter une variable</button>
+                    </div>
+
+                    <div class="toggle-row">
+                        <div class="toggle-info">
+                            <strong>Cache S3</strong>
+                            <span>Accélérer les builds en cachant les dépendances (node_modules, .m2...)</span>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="enable_build_cache" name="enable_build_cache">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- SECTION 4: TEST -->
+                <div class="section-divider">
+                    <span class="section-divider-label">04 — Étape de Test (optionnelle)</span>
+                    <div class="section-divider-line"></div>
+                </div>
+
+                <div class="toggle-row">
+                    <div class="toggle-info">
+                        <strong>Activer l'étape de test</strong>
+                        <span>Tests supplémentaires après le build (tests d'intégration, sécurité, performance...)</span>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="enable_test" name="enable_test">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+
+                <div id="testSection" style="display: none;">
+                    <div class="field-group">
+                        <label class="field-label" for="test_project">
+                            Projet CodeBuild pour les tests
+                        </label>
+                        <input
+                            type="text"
+                            id="test_project"
+                            name="test_project"
+                            placeholder="ex: sonatel-backend-integration-tests"
+                        >
+                    </div>
+
+                    <div class="field-group">
+                        <label class="field-label" for="test_type">
+                            Type de tests
+                        </label>
+                        <div class="select-wrapper">
+                            <select id="test_type" name="test_type">
+                                <option value="integration">Tests d'intégration</option>
+                                <option value="e2e">Tests end-to-end</option>
+                                <option value="security">Scan de sécurité (SAST/DAST)</option>
+                                <option value="performance">Tests de performance</option>
+                                <option value="custom">Personnalisé</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SECTION 5: APPROBATION -->
+                <div class="section-divider">
+                    <span class="section-divider-label">05 — Approbation Manuelle</span>
+                    <div class="section-divider-line"></div>
+                </div>
+
+                <div class="toggle-row">
+                    <div class="toggle-info">
+                        <strong>Approbation manuelle avant déploiement</strong>
+                        <span>Nécessite une confirmation humaine avant le déploiement en production</span>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="manual_approval" name="manual_approval">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+
+                <div id="approvalSection" style="display: none;">
+                    <div class="field-group">
+                        <label class="field-label" for="approval_sns_topic">
+                            Topic SNS pour les notifications
+                        </label>
+                        <p class="field-hint">ARN du topic SNS qui recevra les demandes d'approbation</p>
+                        <input
+                            type="text"
+                            id="approval_sns_topic"
+                            name="approval_sns_topic"
+                            placeholder="arn:aws:sns:eu-west-3:123456789012:pipeline-approvals"
+                        >
+                    </div>
+
+                    <div class="field-group">
+                        <label class="field-label" for="approvers">
+                            Approbateurs (emails)
+                        </label>
+                        <p class="field-hint">Séparez les emails par des virgules</p>
+                        <input
+                            type="text"
+                            id="approvers"
+                            name="approvers"
+                            placeholder="admin@sonatel.sn, lead-dev@sonatel.sn"
+                        >
+                    </div>
+                </div>
+
+                <!-- SECTION 6: DÉPLOIEMENT -->
+                <div class="section-divider">
+                    <span class="section-divider-label">06 — Configuration Déploiement</span>
+                    <div class="section-divider-line"></div>
+                </div>
+
+                <div class="field-group">
+                    <label class="field-label" for="deploy_provider">
+                        Provider de déploiement <span class="req">*</span>
+                    </label>
+                    <p class="field-hint">Où déployer l'application ?</p>
+                    <div class="select-wrapper">
+                        <select id="deploy_provider" name="deploy_provider" required>
+                            <option value="">— Choisir le provider —</option>
+                            <option value="CodeDeploy">🚀 AWS CodeDeploy (EC2/On-premise)</option>
+                            <option value="ECS">🐳 Amazon ECS (conteneurs)</option>
+                            <option value="ECS-BlueGreen">🐳 ECS Blue/Green Deployment</option>
+                            <option value="S3">🪣 Amazon S3 (site statique)</option>
+                            <option value="Lambda">⚡ AWS Lambda (serverless)</option>
+                            <option value="CloudFormation">📋 AWS CloudFormation</option>
+                            <option value="EKS">☸️ Amazon EKS (Kubernetes)</option>
+                            <option value="Beanstalk">🌱 Elastic Beanstalk</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Champs spécifiques ECS -->
+                <div id="ecsFields" style="display: none;">
+                    <div class="field-group">
+                        <label class="field-label" for="ecs_cluster">
+                            Cluster ECS <span class="req">*</span>
+                        </label>
+                        <input
+                            type="text"
+                            id="ecs_cluster"
+                            name="ecs_cluster"
+                            placeholder="ex: sonatel-production-cluster"
+                        >
+                    </div>
+
+                    <div class="field-group">
+                        <label class="field-label" for="ecs_service">
+                            Service ECS <span class="req">*</span>
+                        </label>
+                        <input
+                            type="text"
+                            id="ecs_service"
+                            name="ecs_service"
+                            placeholder="ex: backend-api-service"
+                        >
+                    </div>
+
+                    <div class="field-group">
+                        <label class="field-label" for="ecs_image_definition_file">
+                            Fichier de définition d'image
+                        </label>
+                        <p class="field-hint">Nom du fichier JSON généré par le build (défaut: imagedefinitions.json)</p>
+                        <input
+                            type="text"
+                            id="ecs_image_definition_file"
+                            name="ecs_image_definition_file"
+                            value="imagedefinitions.json"
+                        >
+                    </div>
+                </div>
+
+                <!-- Champs spécifiques CodeDeploy -->
+                <div id="codedeployFields" style="display: none;">
+                    <div class="field-group">
+                        <label class="field-label" for="codedeploy_application">
+                            Application CodeDeploy <span class="req">*</span>
+                        </label>
+                        <input
+                            type="text"
+                            id="codedeploy_application"
+                            name="codedeploy_application"
+                            placeholder="ex: backend-api-app"
+                        >
+                    </div>
+
+                    <div class="field-group">
+                        <label class="field-label" for="codedeploy_deployment_group">
+                            Deployment Group <span class="req">*</span>
+                        </label>
+                        <input
+                            type="text"
+                            id="codedeploy_deployment_group"
+                            name="codedeploy_deployment_group"
+                            placeholder="ex: production-servers"
+                        >
+                    </div>
+                </div>
+
+                <!-- Champs spécifiques Lambda -->
+                <div id="lambdaFields" style="display: none;">
+                    <div class="field-group">
+                        <label class="field-label" for="lambda_function_name">
+                            Nom de la fonction Lambda <span class="req">*</span>
+                        </label>
+                        <input
+                            type="text"
+                            id="lambda_function_name"
+                            name="lambda_function_name"
+                            placeholder="ex: backend-api-handler"
+                        >
+                    </div>
+                </div>
+
+                <!-- Champs spécifiques S3 -->
+                <div id="s3DeployFields" style="display: none;">
+                    <div class="field-group">
+                        <label class="field-label" for="s3_deploy_bucket">
+                            Bucket S3 de destination <span class="req">*</span>
+                        </label>
+                        <input
+                            type="text"
+                            id="s3_deploy_bucket"
+                            name="s3_deploy_bucket"
+                            placeholder="ex: sonatel-website-prod"
+                        >
+                    </div>
+
+                    <div class="toggle-row">
+                        <div class="toggle-info">
+                            <strong>Extraire l'archive avant upload</strong>
+                            <span>Décompresser le ZIP des artifacts avant de les uploader dans S3</span>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="s3_extract" name="s3_extract" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- SECTION 7: NOTIFICATIONS -->
+                <div class="section-divider">
+                    <span class="section-divider-label">07 — Notifications & Monitoring</span>
+                    <div class="section-divider-line"></div>
+                </div>
+
+                <div class="toggle-row">
+                    <div class="toggle-info">
+                        <strong>Notifications SNS</strong>
+                        <span>Recevoir des alertes sur l'état du pipeline (succès, échecs, en cours...)</span>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="enable_notifications" name="enable_notifications">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+
+                <div id="notificationsSection" style="display: none;">
+                    <div class="field-group">
+                        <label class="field-label" for="notification_sns_topic">
+                            Topic SNS pour les notifications
+                        </label>
+                        <input
+                            type="text"
+                            id="notification_sns_topic"
+                            name="notification_sns_topic"
+                            placeholder="arn:aws:sns:eu-west-3:123456789012:pipeline-notifications"
+                        >
+                    </div>
+
+                    <div class="field-group">
+                        <label class="field-label">
+                            Types d'événements à notifier
+                        </label>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px;">
+                            <label style="display: flex; align-items: center; gap: 8px; font-size: 13px;">
+                                <input type="checkbox" name="notify_started" checked>
+                                <span>Pipeline démarré</span>
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 8px; font-size: 13px;">
+                                <input type="checkbox" name="notify_succeeded" checked>
+                                <span>Pipeline réussi</span>
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 8px; font-size: 13px;">
+                                <input type="checkbox" name="notify_failed" checked>
+                                <span>Pipeline échoué</span>
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 8px; font-size: 13px;">
+                                <input type="checkbox" name="notify_canceled">
+                                <span>Pipeline annulé</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="toggle-row">
+                    <div class="toggle-info">
+                        <strong>CloudWatch Alarms</strong>
+                        <span>Créer des alarmes CloudWatch pour surveiller le pipeline</span>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="enable_cloudwatch_alarms" name="enable_cloudwatch_alarms">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+
+                <!-- SECTION 8: TAGS & METADATA -->
+                <div class="section-divider">
+                    <span class="section-divider-label">08 — Tags & Métadonnées</span>
+                    <div class="section-divider-line"></div>
+                </div>
+
+                <div class="field-group">
+                    <label class="field-label" for="tags">
+                        Tags AWS
+                    </label>
+                    <p class="field-hint">Appuyez sur Entrée après chaque tag. Format: key=value</p>
+                    <div class="tags-input-container" id="tagsContainer">
+                        <input
+                            type="text"
+                            id="tagsInput"
+                            placeholder="ex: Environment=production"
+                            onkeypress="handleTagInput(event)"
+                        >
+                    </div>
+                    <input type="hidden" id="tags" name="tags">
+                </div>
+
+                <div class="field-group-inline">
+                    <div class="field-group">
+                        <label class="field-label" for="owner">
+                            Propriétaire / Équipe
+                        </label>
+                        <input
+                            type="text"
+                            id="owner"
+                            name="owner"
+                            placeholder="ex: DevOps Team"
+                        >
+                    </div>
+
+                    <div class="field-group">
+                        <label class="field-label" for="cost_center">
+                            Centre de coûts
+                        </label>
+                        <input
+                            type="text"
+                            id="cost_center"
+                            name="cost_center"
+                            placeholder="ex: CC-1234"
+                        >
+                    </div>
+                </div>
+
+                <!-- SUBMIT -->
+                <div style="margin-top: 40px">
+                    <button type="submit" class="btn-primary" id="submitBtn">
+                        <span class="spinner" id="spinner"></span>
+                        <span id="btnText">🔄 Créer le pipeline CI/CD complet</span>
+                    </button>
+                </div>
+
+                <p style="text-align:center; margin-top:12px; font-size:11px; color: var(--gray-300); font-family:'Space Mono',monospace;">
+                    ⏱️ Le déploiement via GitHub Actions prend environ 3–5 minutes
+                </p>
+
+            </form>
+        </div>
+    </div>
+
+    <!-- SIDE PANEL -->
+    <div class="side-panel">
+        <div class="info-panel">
+            <div class="info-panel-header">🏗️ Ressources Terraform créées</div>
+            <div class="info-item">
+                <div class="info-item-icon">🔄</div>
+                <div>
+                    <div class="info-item-title">aws_codepipeline</div>
+                    <div class="info-item-desc">Pipeline principal avec toutes les étapes configurées</div>
+                </div>
+            </div>
+            <div class="info-item">
+                <div class="info-item-icon">🔗</div>
+                <div>
+                    <div class="info-item-title">aws_codepipeline_webhook</div>
+                    <div class="info-item-desc">Webhook pour déclenchement automatique via GitHub</div>
+                </div>
+            </div>
+            <div class="info-item">
+                <div class="info-item-icon">🪣</div>
+                <div>
+                    <div class="info-item-title">aws_s3_bucket</div>
+                    <div class="info-item-desc">Bucket pour stocker les artifacts du pipeline</div>
+                </div>
+            </div>
+            <div class="info-item">
+                <div class="info-item-icon">🔐</div>
+                <div>
+                    <div class="info-item-title">aws_iam_role</div>
+                    <div class="info-item-desc">Rôle d'exécution avec toutes les permissions nécessaires</div>
+                </div>
+            </div>
+            <div class="info-item">
+                <div class="info-item-icon">📧</div>
+                <div>
+                    <div class="info-item-title">aws_sns_topic (optionnel)</div>
+                    <div class="info-item-desc">Topic pour notifications et approbations</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="info-panel">
+            <div class="info-panel-header">💡 Configuration recommandée</div>
+            <div class="info-item">
+                <div class="info-item-icon">🔒</div>
+                <div>
+                    <div class="info-item-title">Environnement de Production</div>
+                    <div class="info-item-desc">
+                        • Activez l'approbation manuelle<br>
+                        • Configurez les tests d'intégration<br>
+                        • Utilisez Blue/Green deployment<br>
+                        • Activez toutes les notifications
+                    </div>
+                </div>
+            </div>
+            <div class="info-item">
+                <div class="info-item-icon">⚡</div>
+                <div>
+                    <div class="info-item-title">Environnement de Dev</div>
+                    <div class="info-item-desc">
+                        • Déclenchement automatique<br>
+                        • Pas d'approbation manuelle<br>
+                        • Tests unitaires uniquement<br>
+                        • Déploiement rapide
+                    </div>
+                </div>
+            </div>
+            <div class="info-item">
+                <div class="info-item-icon">💰</div>
+                <div>
+                    <div class="info-item-title">Optimisation des Coûts</div>
+                    <div class="info-item-desc">
+                        • Utilisez le cache S3 pour le build<br>
+                        • Compute type "small" si possible<br>
+                        • Nettoyez les artifacts anciens (lifecycle)<br>
+                        • 1 pipeline = $1/mois
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="info-panel">
+            <div class="info-panel-header">📊 Étapes du Pipeline</div>
+            <div style="padding: 16px 20px;">
+                <div class="code-block">
+<span class="code-key">Source</span> → GitHub/CodeCommit
+   ↓
+<span class="code-key">Build</span> → CodeBuild (compile, test)
+   ↓
+<span class="code-key">Test</span> → CodeBuild (intégration)
+   ↓
+<span class="code-key">Approval</span> → Manuel (prod uniquement)
+   ↓
+<span class="code-key">Deploy</span> → ECS/Lambda/EC2/S3
+   ↓
+<span class="code-val">✓ Application déployée</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="info-panel">
+            <div class="info-panel-header">⚠️ Points d'attention</div>
+            <div class="info-item">
+                <div class="info-item-icon">🔑</div>
+                <div>
+                    <div class="info-item-title">Connexion GitHub</div>
+                    <div class="info-item-desc">Vous devez créer une connexion CodeStar dans la console AWS avant de pouvoir utiliser GitHub comme source.</div>
+                </div>
+            </div>
+            <div class="info-item">
+                <div class="info-item-icon">🏗️</div>
+                <div>
+                    <div class="info-item-title">Ressources Existantes</div>
+                    <div class="info-item-desc">Le projet CodeBuild, l'application CodeDeploy et les ressources de déploiement doivent être créés au préalable.</div>
+                </div>
+            </div>
+            <div class="info-item">
+                <div class="info-item-icon">⏱️</div>
+                <div>
+                    <div class="info-item-title">Première Exécution</div>
+                    <div class="info-item-desc">Le premier déploiement du pipeline prend plus de temps (création des ressources IAM, S3, etc.).</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <p class="footer-note">
+        PROJET IAC SONATEL · CodePipeline CI/CD Professionnel · Terraform + GitHub Actions
+    </p>
+
+</main>
+
+<script>
+    // ═══════════════════════════════════════════════════════════════════════════════
+    // JAVASCRIPT - Logique du formulaire
+    // ═══════════════════════════════════════════════════════════════════════════════
+
+    const form = document.getElementById('pipelineForm');
+    const submitBtn = document.getElementById('submitBtn');
+    const spinner = document.getElementById('spinner');
+    const btnText = document.getElementById('btnText');
+    const alert = document.getElementById('alertBanner');
+    const alertText = document.getElementById('alertText');
+
+    // Tags system
+    const tags = [];
+
+    function showAlert(msg) {
+        alertText.textContent = msg;
+        alert.style.display = 'flex';
+        alert.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    function hideAlert() {
+        alert.style.display = 'none';
+    }
+
+    // ── Affichage conditionnel des champs selon le provider source ────────
+    document.getElementById('source_provider').addEventListener('change', function() {
+        const provider = this.value;
+        document.getElementById('githubFields').style.display = 'none';
+        document.getElementById('codecommitFields').style.display = 'none';
+        document.getElementById('s3Fields').style.display = 'none';
+
+        if (provider === 'GitHub' || provider === 'GitHubEnterprise' || provider === 'Bitbucket') {
+            document.getElementById('githubFields').style.display = 'block';
+        } else if (provider === 'CodeCommit') {
+            document.getElementById('codecommitFields').style.display = 'block';
+        } else if (provider === 'S3') {
+            document.getElementById('s3Fields').style.display = 'block';
+        }
+    });
+
+    // ── Affichage conditionnel des champs selon le provider de déploiement ────
+    document.getElementById('deploy_provider').addEventListener('change', function() {
+        const provider = this.value;
+        document.getElementById('ecsFields').style.display = 'none';
+        document.getElementById('codedeployFields').style.display = 'none';
+        document.getElementById('lambdaFields').style.display = 'none';
+        document.getElementById('s3DeployFields').style.display = 'none';
+
+        if (provider.startsWith('ECS')) {
+            document.getElementById('ecsFields').style.display = 'block';
+        } else if (provider === 'CodeDeploy') {
+            document.getElementById('codedeployFields').style.display = 'block';
+        } else if (provider === 'Lambda') {
+            document.getElementById('lambdaFields').style.display = 'block';
+        } else if (provider === 'S3') {
+            document.getElementById('s3DeployFields').style.display = 'block';
+        }
+    });
+
+    // ── Toggles pour afficher/masquer les sections ────────────────────────
+    document.getElementById('enable_build').addEventListener('change', function() {
+        document.getElementById('buildSection').style.display = this.checked ? 'block' : 'none';
+    });
+
+    document.getElementById('enable_test').addEventListener('change', function() {
+        document.getElementById('testSection').style.display = this.checked ? 'block' : 'none';
+    });
+
+    document.getElementById('manual_approval').addEventListener('change', function() {
+        document.getElementById('approvalSection').style.display = this.checked ? 'block' : 'none';
+    });
+
+    document.getElementById('enable_notifications').addEventListener('change', function() {
+        document.getElementById('notificationsSection').style.display = this.checked ? 'block' : 'none';
+    });
+
+    document.getElementById('enable_build_env_vars').addEventListener('change', function() {
+        document.getElementById('buildEnvVarsContainer').classList.toggle('visible', this.checked);
+    });
+
+    // ── Variables d'environnement du build ────────────────────────────────
+    function addBuildEnvVar() {
+        const container = document.getElementById('buildEnvVarsList');
+        const row = document.createElement('div');
+        row.className = 'env-var-row';
+        row.innerHTML = `
+            <input type="text" placeholder="Clé" class="env-var-key">
+            <input type="text" placeholder="Valeur" class="env-var-value">
+            <button type="button" class="btn-icon" onclick="removeEnvVar(this)">×</button>
+        `;
+        container.appendChild(row);
+    }
+
+    function removeEnvVar(btn) {
+        btn.parentElement.remove();
+    }
+
+    // ── Tags input system ──────────────────────────────────────────────────
+    function handleTagInput(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            const input = e.target;
+            const value = input.value.trim();
+            
+            if (value && value.includes('=')) {
+                const [key, val] = value.split('=').map(s => s.trim());
+                if (key && val) {
+                    tags.push({ key, value: val });
+                    addTagToUI(key, val);
+                    input.value = '';
+                    updateTagsHidden();
+                }
+            } else if (value) {
+                showAlert('Format de tag invalide. Utilisez: key=value');
+            }
+        }
+    }
+
+    function addTagToUI(key, value) {
+        const container = document.getElementById('tagsContainer');
+        const input = document.getElementById('tagsInput');
+        
+        const tagElement = document.createElement('div');
+        tagElement.className = 'tag-item';
+        tagElement.innerHTML = `
+            ${key}=${value}
+            <span class="tag-remove" onclick="removeTag('${key}', this)">×</span>
+        `;
+        
+        container.insertBefore(tagElement, input);
+    }
+
+    function removeTag(key, element) {
+        const index = tags.findIndex(t => t.key === key);
+        if (index > -1) {
+            tags.splice(index, 1);
+            element.parentElement.remove();
+            updateTagsHidden();
+        }
+    }
+
+    function updateTagsHidden() {
+        document.getElementById('tags').value = JSON.stringify(tags);
+    }
+
+    // ── Validation du formulaire ───────────────────────────────────────────
+    function validatePipelineName() {
+        const name = document.getElementById('pipeline_name').value.trim();
+        const validation = document.getElementById('nameValidation');
+        
+        if (!name) {
+            validation.textContent = '';
+            validation.className = 'validation-msg';
+            return false;
+        }
+        
+        if (!/^[a-zA-Z0-9_-]+$/.test(name)) {
+            validation.textContent = '❌ Caractères invalides (alphanumériques, tirets, underscores uniquement)';
+            validation.className = 'validation-msg error';
+            return false;
+        }
+        
+        if (name.length < 3) {
+            validation.textContent = '❌ Minimum 3 caractères';
+            validation.className = 'validation-msg error';
+            return false;
+        }
+        
+        validation.textContent = '✅ Nom valide';
+        validation.className = 'validation-msg success';
+        return true;
+    }
+
+    document.getElementById('pipeline_name').addEventListener('input', validatePipelineName);
+
+    // ── Soumission du formulaire ───────────────────────────────────────────
+    form.addEventListener('submit', function(e) {
+        hideAlert();
+
+        const pipelineName = document.getElementById('pipeline_name').value.trim();
+        const environment = document.getElementById('environment').value;
+        const sourceProvider = document.getElementById('source_provider').value;
+        const deployProvider = document.getElementById('deploy_provider').value;
+
+        // Validations de base
+        if (!pipelineName || !environment || !sourceProvider || !deployProvider) {
+            e.preventDefault();
+            showAlert("⚠️ Veuillez remplir tous les champs obligatoires (marqués *)");
+            return false;
+        }
+
+        if (!validatePipelineName()) {
+            e.preventDefault();
+            showAlert("⚠️ Le nom du pipeline est invalide");
+            document.getElementById('pipeline_name').focus();
+            return false;
+        }
+
+        // Validation selon le provider source
+        if ((sourceProvider === 'GitHub' || sourceProvider === 'GitHubEnterprise') && !document.getElementById('repository').value.trim()) {
+            e.preventDefault();
+            showAlert("⚠️ Veuillez spécifier le repository GitHub");
+            return false;
+        }
+
+        // Confirmation pour production
+        if (environment === 'prod') {
+            if (!confirm('⚠️ ATTENTION\n\nVous allez créer un pipeline CI/CD en PRODUCTION.\n\nAssurez-vous que :\n• Toutes les ressources cibles existent\n• Les approbations manuelles sont activées\n• Les tests sont configurés\n\nConfirmez-vous ?')) {
+                e.preventDefault();
+                return false;
+            }
+        }
+
+        // Collecte des variables d'environnement
+        const envVars = [];
+        document.querySelectorAll('#buildEnvVarsList .env-var-row').forEach(row => {
+            const key = row.querySelector('.env-var-key').value.trim();
+            const value = row.querySelector('.env-var-value').value.trim();
+            if (key && value) {
+                envVars.push({ key, value });
+            }
+        });
+        
+        if (envVars.length > 0) {
+            const hiddenInput = document.createElement('input');
+            hiddenInput.type = 'hidden';
+            hiddenInput.name = 'build_env_vars';
+            hiddenInput.value = JSON.stringify(envVars);
+            form.appendChild(hiddenInput);
+        }
+
+        // Procéder
+        spinner.style.display = 'block';
+        btnText.textContent = 'Création du pipeline en cours...';
+        submitBtn.disabled = true;
+    });
+
+    // ── Auto-focus premier champ ───────────────────────────────────────────
+    setTimeout(() => document.getElementById('pipeline_name').focus(), 400);
+
+    // ── Toggle rows: prevent double-click form submit ──────────────────────
+    document.querySelectorAll('.toggle-row').forEach(row => {
+        row.addEventListener('click', function(e) {
+            if (e.target.type === 'checkbox') return;
+            const cb = this.querySelector('input[type="checkbox"]');
+            if (cb) {
+                cb.checked = !cb.checked;
+                cb.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+        });
+    });
+</script>
+</body>
+</html>

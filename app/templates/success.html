@@ -1,0 +1,162 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ service }} — Déploiement déclenché · SONATEL IAC{% endblock %}
+
+{% block topbar_label %}✅ Déploiement déclenché{% endblock %}
+
+{% block extra_styles %}
+<style>
+    /* ── Variable CSS : injectée une seule fois par Jinja2 ──── */
+    :root { --service-color: {{ color }}; }
+
+    .success-wrapper {
+        min-height: 60vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .success-card {
+        background: rgba(10, 22, 40, 0.95);
+        border: 1px solid color-mix(in srgb, var(--service-color) 25%, transparent);
+        border-radius: 20px;
+        max-width: 640px;
+        width: 100%;
+        padding: 48px 40px;
+        text-align: center;
+        box-shadow: 0 0 60px color-mix(in srgb, var(--service-color) 12%, transparent);
+        animation: fadeInUp 0.4s ease-out;
+    }
+
+    .success-icon {
+        font-size: 72px;
+        margin-bottom: 20px;
+        display: block;
+    }
+
+    .success-title {
+        font-size: 28px;
+        font-weight: 800;
+        color: var(--service-color);
+        margin-bottom: 8px;
+    }
+
+    .success-subtitle {
+        color: var(--gray-300);
+        font-size: 14px;
+        margin-bottom: 32px;
+    }
+
+    .detail-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+        text-align: left;
+        margin-bottom: 32px;
+    }
+
+    .detail-cell {
+        background: rgba(15, 32, 68, 0.7);
+        border: 1px solid rgba(14, 165, 233, 0.15);
+        border-radius: 10px;
+        padding: 14px 16px;
+    }
+
+    .detail-label {
+        font-family: 'Space Mono', monospace;
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        color: #64748b;
+        margin-bottom: 4px;
+    }
+
+    .detail-value {
+        font-size: 14px;
+        font-weight: 600;
+        color: #f8fafc;
+        word-break: break-word;
+    }
+
+    .btn-group {
+        display: flex;
+        justify-content: center;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 13px 28px;
+        border-radius: 10px;
+        font-family: 'Sora', sans-serif;
+        font-size: 14px;
+        font-weight: 600;
+        text-decoration: none;
+        cursor: pointer;
+        border: none;
+        transition: all 0.2s;
+    }
+
+    .btn-primary {
+        background: linear-gradient(
+            135deg,
+            var(--service-color),
+            color-mix(in srgb, var(--service-color) 80%, black)
+        );
+        color: #fff;
+    }
+
+    .btn-secondary {
+        background: rgba(14, 165, 233, 0.1);
+        border: 1px solid rgba(14, 165, 233, 0.3);
+        color: #0ea5e9;
+    }
+
+    .btn:hover { transform: translateY(-2px); }
+
+    @media (max-width: 480px) {
+        .success-card { padding: 32px 20px; }
+        .detail-grid { grid-template-columns: 1fr; }
+        .success-icon { font-size: 56px; }
+        .success-title { font-size: 22px; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="success-wrapper">
+    <div class="success-card">
+
+        <span class="success-icon">✅</span>
+
+        <h1 class="success-title">Pipeline déclenché avec succès !</h1>
+        <p class="success-subtitle">
+            {{ title }} · Déploiement en cours via GitHub Actions
+        </p>
+
+        <!-- Grille des détails -->
+        <div class="detail-grid">
+            {% for key, value in details.items() %}
+            <div class="detail-cell">
+                <div class="detail-label">{{ key }}</div>
+                <div class="detail-value">{{ value }}</div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <div class="btn-group">
+            <a href="https://github.com/{{ github_owner }}/{{ github_repo }}/actions"
+               class="btn btn-primary"
+               target="_blank"
+               rel="noopener noreferrer">
+                📊 Suivre le déploiement
+            </a>
+            <a href="/" class="btn btn-secondary">🏠 Accueil</a>
+        </div>
+
+    </div>
+</div>
+{% endblock %}

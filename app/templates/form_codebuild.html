@@ -1,0 +1,1640 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SONATEL IAC — Déploiement CodeBuild</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Sora:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        /* STYLE IDENTIQUE - Couleur CodeBuild #10B981 (Emerald) */
+        :root {
+            --navy-900: #060d1f;
+            --navy-800: #0a1628;
+            --navy-700: #0f2044;
+            --service-color: #10b981;
+            --service-rgb: 16, 185, 129;
+            --amber: #f59e0b;
+            --teal: #0ea5e9;
+            --green: #22c55e;
+            --red: #ef4444;
+            --white: #f8fafc;
+            --gray-300: #94a3b8;
+            --gray-200: #cbd5e1;
+            --card-bg: rgba(10, 22, 40, 0.92);
+            --border: rgba(14, 165, 233, 0.18);
+            --glow-service: 0 0 24px rgba(var(--service-rgb), 0.25);
+            --radius: 14px;
+            --radius-sm: 8px;
+        }
+
+        *, *::before, *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        html { scroll-behavior: smooth; }
+
+        body {
+            font-family: 'Sora', sans-serif;
+            background-color: var(--navy-900);
+            color: var(--white);
+            min-height: 100vh;
+            overflow-x: hidden;
+            position: relative;
+            zoom: 0.8;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background-image:
+                linear-gradient(rgba(14,165,233,0.04) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(14,165,233,0.04) 1px, transparent 1px);
+            background-size: 48px 48px;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        body::after {
+            content: '';
+            position: fixed;
+            width: 600px;
+            height: 600px;
+            background: radial-gradient(circle, rgba(16,185,129,0.07) 0%, transparent 70%);
+            top: -150px;
+            right: -150px;
+            pointer-events: none;
+            z-index: 0;
+            animation: orbFloat 10s ease-in-out infinite alternate;
+        }
+
+        @keyframes orbFloat {
+            from { transform: translate(0,0) scale(1); }
+            to   { transform: translate(-30px, 40px) scale(1.1); }
+        }
+
+        .orb-left {
+            position: fixed;
+            width: 500px;
+            height: 500px;
+            background: radial-gradient(circle, rgba(14,165,233,0.08) 0%, transparent 70%);
+            bottom: -100px;
+            left: -100px;
+            pointer-events: none;
+            z-index: 0;
+            animation: orbFloat 13s ease-in-out infinite alternate-reverse;
+        }
+
+        /* Copie du style S3/CodePipeline - styles complets identiques */
+        .topbar {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: rgba(6,13,31,0.85);
+            backdrop-filter: blur(16px);
+            border-bottom: 1px solid var(--border);
+            padding: 0 32px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .topbar-brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-family: 'Space Mono', monospace;
+            font-size: 13px;
+            letter-spacing: 0.05em;
+        }
+
+        .topbar-logo {
+            width: 32px;
+            height: 32px;
+            background: linear-gradient(135deg, var(--teal), var(--amber));
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+        }
+
+        .topbar-brand span { color: var(--gray-300); }
+        .topbar-brand strong { color: var(--white); }
+
+        .topbar-right {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .btn-back {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            background: rgba(16,185,129,0.1);
+            border: 1px solid rgba(16,185,129,0.3);
+            border-radius: 8px;
+            color: var(--service-color);
+            text-decoration: none;
+            font-size: 12px;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+        .btn-back:hover { background: rgba(16,185,129,0.15); }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--green);
+            box-shadow: 0 0 8px var(--green);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+
+        .topbar-service {
+            font-family: 'Space Mono', monospace;
+            font-size: 11px;
+            color: var(--gray-300);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .chip {
+            font-family: 'Space Mono', monospace;
+            font-size: 11px;
+            padding: 5px 12px;
+            border-radius: 100px;
+            border: 1px solid;
+        }
+
+        .chip-service {
+            color: var(--service-color);
+            border-color: rgba(var(--service-rgb), 0.4);
+            background: rgba(var(--service-rgb), 0.07);
+        }
+
+        .chip-amber {
+            color: var(--amber);
+            border-color: rgba(245,158,11,0.4);
+            background: rgba(245,158,11,0.07);
+        }
+
+        .page-wrapper {
+            position: relative;
+            z-index: 1;
+            max-width: 1180px;
+            margin: 0 auto;
+            padding: 48px 24px 80px;
+            display: grid;
+            grid-template-columns: 1fr 380px;
+            gap: 32px;
+            align-items: start;
+        }
+
+        .page-header {
+            grid-column: 1 / -1;
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 24px;
+            margin-bottom: 8px;
+        }
+
+        .page-title-group { flex: 1; }
+
+        .page-eyebrow {
+            font-family: 'Space Mono', monospace;
+            font-size: 11px;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            color: var(--service-color);
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .page-eyebrow::before {
+            content: '';
+            width: 24px;
+            height: 2px;
+            background: var(--service-color);
+        }
+
+        .page-title {
+            font-size: 36px;
+            font-weight: 800;
+            line-height: 1.1;
+            letter-spacing: -0.02em;
+            background: linear-gradient(135deg, var(--white) 30%, var(--service-color));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .page-subtitle {
+            margin-top: 12px;
+            color: var(--gray-300);
+            font-size: 15px;
+            font-weight: 300;
+            line-height: 1.6;
+            max-width: 520px;
+        }
+
+        .region-chip {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 6px;
+            flex-shrink: 0;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            overflow: hidden;
+            backdrop-filter: blur(12px);
+        }
+
+        .card-header {
+            padding: 24px 32px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .card-header-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            background: linear-gradient(135deg, rgba(var(--service-rgb), 0.2), rgba(var(--service-rgb), 0.05));
+            border: 1px solid rgba(var(--service-rgb), 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            flex-shrink: 0;
+        }
+
+        .card-header-text h3 {
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--white);
+            margin-bottom: 2px;
+        }
+
+        .card-header-text p {
+            font-size: 12px;
+            color: var(--gray-300);
+        }
+
+        .card-body { padding: 32px; }
+
+        .steps-track {
+            display: flex;
+            align-items: center;
+            gap: 0;
+            margin-bottom: 32px;
+        }
+
+        .step-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            position: relative;
+        }
+
+        .step-num {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            border: 2px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Space Mono', monospace;
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--gray-300);
+            background: var(--navy-800);
+            z-index: 1;
+            transition: all 0.3s;
+        }
+
+        .step-item.active .step-num {
+            border-color: var(--service-color);
+            color: var(--service-color);
+            box-shadow: 0 0 12px rgba(var(--service-rgb), 0.4);
+        }
+
+        .step-item.done .step-num {
+            background: var(--service-color);
+            border-color: var(--service-color);
+            color: var(--navy-900);
+        }
+
+        .step-label {
+            font-size: 10px;
+            font-family: 'Space Mono', monospace;
+            letter-spacing: 0.04em;
+            color: var(--gray-300);
+            white-space: nowrap;
+        }
+
+        .step-item.active .step-label { color: var(--service-color); }
+
+        .step-connector {
+            flex: 1;
+            height: 2px;
+            background: var(--border);
+            margin: 0 8px;
+            margin-bottom: 22px;
+        }
+
+        .section-divider {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin: 8px 0 24px;
+        }
+
+        .section-divider-label {
+            font-family: 'Space Mono', monospace;
+            font-size: 10px;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: var(--gray-300);
+            white-space: nowrap;
+        }
+
+        .section-divider-line {
+            flex: 1;
+            height: 1px;
+            background: var(--border);
+        }
+
+        .field-group { margin-bottom: 24px; }
+
+        .field-label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--gray-200);
+        }
+
+        .field-label .req {
+            color: var(--amber);
+            font-size: 16px;
+            line-height: 1;
+        }
+
+        .field-hint {
+            font-size: 11px;
+            color: var(--gray-300);
+            margin-bottom: 8px;
+            font-weight: 300;
+            font-style: italic;
+        }
+
+        input[type="text"],
+        input[type="number"],
+        select,
+        textarea {
+            width: 100%;
+            background: rgba(15, 32, 68, 0.6);
+            border: 1.5px solid rgba(14,165,233,0.2);
+            color: var(--white);
+            border-radius: var(--radius-sm);
+            padding: 13px 16px;
+            font-family: 'Sora', sans-serif;
+            font-size: 14px;
+            transition: border-color 0.25s, box-shadow 0.25s, background 0.25s;
+            appearance: none;
+            outline: none;
+        }
+
+        input::placeholder { color: rgba(148,163,184,0.5); }
+
+        input:focus,
+        select:focus,
+        textarea:focus {
+            border-color: var(--service-color);
+            background: rgba(15, 32, 68, 0.9);
+            box-shadow: var(--glow-service);
+        }
+
+        input.error-field { border-color: var(--red) !important; }
+
+        textarea {
+            min-height: 120px;
+            resize: vertical;
+            font-family: 'Space Mono', monospace;
+            font-size: 12px;
+            line-height: 1.6;
+        }
+
+        .select-wrapper {
+            position: relative;
+        }
+
+        .select-wrapper::after {
+            content: '▾';
+            position: absolute;
+            right: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--service-color);
+            pointer-events: none;
+            font-size: 14px;
+        }
+
+        .select-wrapper select {
+            padding-right: 36px;
+            cursor: pointer;
+        }
+
+        select option {
+            background: var(--navy-800);
+            color: var(--white);
+        }
+
+        .toggle-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 16px;
+            background: rgba(15,32,68,0.5);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            margin-bottom: 12px;
+            cursor: pointer;
+            transition: background 0.2s, border-color 0.2s;
+        }
+
+        .toggle-row:hover {
+            background: rgba(15,32,68,0.8);
+            border-color: rgba(14,165,233,0.3);
+        }
+
+        .toggle-row:has(input:checked) {
+            border-color: rgba(var(--service-rgb), 0.5);
+            background: rgba(var(--service-rgb), 0.06);
+        }
+
+        .toggle-info { flex: 1; }
+        .toggle-info strong {
+            font-size: 13px;
+            font-weight: 600;
+            display: block;
+            margin-bottom: 2px;
+        }
+        .toggle-info span {
+            font-size: 11px;
+            color: var(--gray-300);
+        }
+
+        .toggle-switch {
+            position: relative;
+            width: 44px;
+            height: 24px;
+            flex-shrink: 0;
+        }
+
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            inset: 0;
+            background: rgba(148,163,184,0.2);
+            border-radius: 100px;
+            transition: 0.3s;
+            cursor: pointer;
+        }
+
+        .toggle-slider::before {
+            content: '';
+            position: absolute;
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background: var(--gray-300);
+            border-radius: 50%;
+            transition: 0.3s;
+        }
+
+        .toggle-switch input:checked + .toggle-slider {
+            background: rgba(var(--service-rgb), 0.4);
+        }
+
+        .toggle-switch input:checked + .toggle-slider::before {
+            transform: translateX(20px);
+            background: var(--service-color);
+            box-shadow: 0 0 8px var(--service-color);
+        }
+
+        .env-vars-container {
+            display: none;
+            background: rgba(15,32,68,0.5);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            padding: 16px;
+            margin-top: 12px;
+        }
+
+        .env-vars-container.visible { display: block; }
+
+        .env-var-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr auto;
+            gap: 10px;
+            margin-bottom: 10px;
+            align-items: start;
+        }
+
+        .env-var-row:last-child { margin-bottom: 0; }
+
+        .env-var-row input {
+            font-size: 13px;
+            padding: 10px 12px;
+        }
+
+        .btn-icon {
+            width: 38px;
+            height: 38px;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            background: rgba(15,32,68,0.6);
+            color: var(--white);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 18px;
+        }
+
+        .btn-icon:hover {
+            background: rgba(239,68,68,0.2);
+            border-color: var(--red);
+            color: var(--red);
+        }
+
+        .btn-add {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 14px;
+            background: rgba(var(--service-rgb), 0.1);
+            border: 1px solid rgba(var(--service-rgb), 0.3);
+            border-radius: 6px;
+            color: var(--service-color);
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-top: 8px;
+        }
+
+        .btn-add:hover {
+            background: rgba(var(--service-rgb), 0.15);
+        }
+
+        .btn-primary {
+            width: 100%;
+            padding: 17px;
+            background: linear-gradient(135deg, var(--service-color) 0%, rgba(var(--service-rgb), 0.8) 100%);
+            border: none;
+            border-radius: 10px;
+            color: var(--white);
+            font-family: 'Sora', sans-serif;
+            font-size: 15px;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .btn-primary::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -60%;
+            width: 200%;
+            height: 200%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
+            transform: rotate(30deg) translateX(-100%);
+            transition: transform 0.6s;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 16px 40px rgba(var(--service-rgb), 0.4);
+        }
+
+        .btn-primary:hover::before {
+            transform: rotate(30deg) translateX(200%);
+        }
+
+        .btn-primary:active { transform: translateY(0); }
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+        .spinner {
+            width: 18px;
+            height: 18px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-top-color: var(--white);
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+            display: none;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .side-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .info-panel {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            overflow: hidden;
+        }
+
+        .info-panel-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border);
+            font-size: 12px;
+            font-family: 'Space Mono', monospace;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--amber);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .info-item {
+            padding: 14px 20px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            gap: 12px;
+            align-items: flex-start;
+        }
+
+        .info-item:last-child { border-bottom: none; }
+
+        .info-item-icon {
+            font-size: 18px;
+            flex-shrink: 0;
+            margin-top: 1px;
+        }
+
+        .info-item-title {
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--white);
+            margin-bottom: 3px;
+        }
+
+        .info-item-desc {
+            font-size: 11px;
+            color: var(--gray-300);
+            line-height: 1.5;
+        }
+
+        .code-block {
+            background: rgba(6,13,31,0.8);
+            padding: 12px 16px;
+            border-radius: 6px;
+            font-family: 'Space Mono', monospace;
+            font-size: 11px;
+            color: #a8d8f0;
+            line-height: 1.6;
+            overflow-x: auto;
+            margin-top: 8px;
+        }
+
+        .validation-msg {
+            font-size: 11px;
+            margin-top: 5px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            min-height: 16px;
+        }
+
+        .validation-msg.error { color: #f87171; }
+        .validation-msg.success { color: var(--green); }
+        .validation-msg.warning { color: var(--amber); }
+
+        .alert-banner {
+            display: none;
+            padding: 12px 16px;
+            border-radius: var(--radius-sm);
+            font-size: 13px;
+            margin-bottom: 24px;
+            align-items: flex-start;
+            gap: 10px;
+        }
+
+        .alert-banner.error {
+            background: rgba(239,68,68,0.1);
+            border: 1px solid rgba(239,68,68,0.3);
+            color: #fca5a5;
+            display: flex;
+        }
+
+        .footer-note {
+            grid-column: 1 / -1;
+            text-align: center;
+            font-size: 11px;
+            color: var(--gray-300);
+            margin-top: 8px;
+            font-family: 'Space Mono', monospace;
+        }
+
+        .field-group-inline {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        @media (max-width: 900px) {
+            .page-wrapper {
+                grid-template-columns: 1fr;
+                padding: 32px 16px 60px;
+            }
+            .page-header {
+                flex-direction: column;
+                gap: 16px;
+            }
+            .field-group-inline {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .card {
+            animation: fadeInUp 0.5s ease-out both;
+        }
+
+        .side-panel > * {
+            animation: fadeInUp 0.5s ease-out both;
+        }
+
+        .side-panel > *:nth-child(2) {
+            animation-delay: 0.08s;
+        }
+
+        .side-panel > *:nth-child(3) {
+            animation-delay: 0.16s;
+        }
+    </style>
+</head>
+<body>
+<div class="orb-left"></div>
+
+<header class="topbar">
+    <div class="topbar-brand">
+        <div class="topbar-logo">☁️</div>
+        <span>PROJET IAC</span> <strong>SONATEL</strong>
+    </div>
+    <div class="topbar-right">
+        <a href="/" class="btn-back">← Tous les services</a>
+        <div class="topbar-service">
+            <div class="status-dot"></div>
+            Services opérationnels
+        </div>
+        <div class="chip chip-service">
+            🏗️ CodeBuild
+        </div>
+    </div>
+</header>
+
+<main class="page-wrapper">
+    <div class="page-header">
+        <div class="page-title-group">
+            <div class="page-eyebrow">Infrastructure as Code · AWS CodeBuild</div>
+            <h1 class="page-title">Projet Build<br>Serverless</h1>
+            <p class="page-subtitle">
+                Créez un projet AWS CodeBuild pour compiler, tester et packager votre code source.
+                Configuration complète : environnement, compute, buildspec, cache et artifacts.
+            </p>
+        </div>
+        <div class="region-chip">
+            <div class="chip chip-service">🟢 CodeBuild</div>
+            <div class="chip chip-amber">⚡ Terraform 1.x</div>
+            <div class="chip chip-service">🔄 GitHub Actions</div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <div class="card-header-icon">🏗️</div>
+            <div class="card-header-text">
+                <h3>Configuration du Projet CodeBuild</h3>
+                <p>Définissez l'environnement de build et les spécifications</p>
+            </div>
+        </div>
+
+        <div class="card-body">
+            <div class="steps-track" id="stepsTrack">
+                <div class="step-item active" data-step="1">
+                    <div class="step-num">1</div>
+                    <span class="step-label">Projet</span>
+                </div>
+                <div class="step-connector"></div>
+                <div class="step-item" data-step="2">
+                    <div class="step-num">2</div>
+                    <span class="step-label">Source</span>
+                </div>
+                <div class="step-connector"></div>
+                <div class="step-item" data-step="3">
+                    <div class="step-num">3</div>
+                    <span class="step-label">Build</span>
+                </div>
+                <div class="step-connector"></div>
+                <div class="step-item" data-step="4">
+                    <div class="step-num">4</div>
+                    <span class="step-label">Config</span>
+                </div>
+            </div>
+
+            <div id="alertBanner" class="alert-banner error">
+                <span>⚠️</span>
+                <span id="alertText"></span>
+            </div>
+
+            <form method="post" action="/trigger-codebuild" id="buildForm">
+
+                <!-- SECTION 1: PROJET -->
+                <div class="section-divider">
+                    <span class="section-divider-label">01 — Projet CodeBuild</span>
+                    <div class="section-divider-line"></div>
+                </div>
+
+                <div class="field-group">
+                    <label class="field-label" for="project_name">
+                        Nom du projet
+                        <span class="req">*</span>
+                    </label>
+                    <p class="field-hint">
+                        1-255 caractères · alphanumériques, tirets et underscores uniquement
+                    </p>
+                    <input
+                        type="text"
+                        id="project_name"
+                        name="project_name"
+                        placeholder="ex: sonatel-backend-build"
+                        required
+                        maxlength="255"
+                        pattern="[a-zA-Z0-9_-]+"
+                    >
+                    <div class="validation-msg" id="nameValidation"></div>
+                </div>
+
+                <div class="field-group-inline">
+                    <div class="field-group">
+                        <label class="field-label" for="environment">
+                            Environnement <span class="req">*</span>
+                        </label>
+                        <div class="select-wrapper">
+                            <select id="environment" name="environment" required>
+                                <option value="">— Choisir —</option>
+                                <option value="dev">🔧 Développement</option>
+                                <option value="staging">🧪 Staging</option>
+                                <option value="prod">🚀 Production</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="field-group">
+                        <label class="field-label" for="region">
+                            Région AWS <span class="req">*</span>
+                        </label>
+                        <div class="select-wrapper">
+                            <select id="region" name="region" required>
+                                <option value="eu-west-3">🇫🇷 eu-west-3 (Paris)</option>
+                                <option value="eu-west-1">🇮🇪 eu-west-1 (Irlande)</option>
+                                <option value="us-east-1">🇺🇸 us-east-1 (Virginie)</option>
+                                <option value="us-west-2">🇺🇸 us-west-2 (Oregon)</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="field-group">
+                    <label class="field-label" for="description">
+                        Description
+                    </label>
+                    <p class="field-hint">Description du projet (optionnel mais recommandé)</p>
+                    <textarea
+                        id="description"
+                        name="description"
+                        placeholder="ex: Build Docker + tests unitaires pour l'API backend principale"
+                        rows="2"
+                    ></textarea>
+                </div>
+
+                <!-- SECTION 2: SOURCE -->
+                <div class="section-divider">
+                    <span class="section-divider-label">02 — Configuration Source</span>
+                    <div class="section-divider-line"></div>
+                </div>
+
+                <div class="field-group">
+                    <label class="field-label" for="source_type">
+                        Type de source <span class="req">*</span>
+                    </label>
+                    <div class="select-wrapper">
+                        <select id="source_type" name="source_type" required>
+                            <option value="">— Choisir —</option>
+                            <option value="CODECOMMIT">☁️ AWS CodeCommit</option>
+                            <option value="CODEPIPELINE">🔄 CodePipeline</option>
+                            <option value="GITHUB">🐙 GitHub</option>
+                            <option value="GITHUB_ENTERPRISE">🏢 GitHub Enterprise</option>
+                            <option value="BITBUCKET">🌊 Bitbucket</option>
+                            <option value="S3">🪣 Amazon S3</option>
+                            <option value="NO_SOURCE">❌ Pas de source</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div id="sourceFields" style="display: none;">
+                    <div class="field-group">
+                        <label class="field-label" for="source_location">
+                            Emplacement source
+                        </label>
+                        <p class="field-hint">URL du repository ou bucket S3</p>
+                        <input
+                            type="text"
+                            id="source_location"
+                            name="source_location"
+                            placeholder="ex: https://github.com/owner/repo.git"
+                        >
+                    </div>
+
+                    <div class="field-group">
+                        <label class="field-label" for="source_version">
+                            Version/Branche
+                        </label>
+                        <input
+                            type="text"
+                            id="source_version"
+                            name="source_version"
+                            placeholder="ex: main, refs/heads/develop"
+                            value="main"
+                        >
+                    </div>
+                </div>
+
+                <!-- SECTION 3: ENVIRONNEMENT BUILD -->
+                <div class="section-divider">
+                    <span class="section-divider-label">03 — Environnement de Build</span>
+                    <div class="section-divider-line"></div>
+                </div>
+
+                <div class="field-group">
+                    <label class="field-label" for="environment_type">
+                        Type d'environnement <span class="req">*</span>
+                    </label>
+                    <div class="select-wrapper">
+                        <select id="environment_type" name="environment_type" required>
+                            <option value="LINUX_CONTAINER">🐧 Linux Container</option>
+                            <option value="LINUX_GPU_CONTAINER">🎮 Linux GPU Container</option>
+                            <option value="ARM_CONTAINER">💪 ARM Container</option>
+                            <option value="WINDOWS_CONTAINER">🪟 Windows Container</option>
+                            <option value="WINDOWS_SERVER_2019_CONTAINER">🪟 Windows Server 2019</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="field-group">
+                    <label class="field-label" for="image">
+                        Image Docker <span class="req">*</span>
+                    </label>
+                    <p class="field-hint">Image AWS managed ou custom depuis ECR</p>
+                    <div class="select-wrapper">
+                        <select id="image" name="image" required>
+                            <optgroup label="Ubuntu Standard">
+                                <option value="aws/codebuild/standard:7.0" selected>Ubuntu 22.04 Standard 7.0 (Recommandé)</option>
+                                <option value="aws/codebuild/standard:6.0">Ubuntu 20.04 Standard 6.0</option>
+                                <option value="aws/codebuild/standard:5.0">Ubuntu 18.04 Standard 5.0</option>
+                            </optgroup>
+                            <optgroup label="Amazon Linux">
+                                <option value="aws/codebuild/amazonlinux2-x86_64-standard:5.0">Amazon Linux 2 x86</option>
+                                <option value="aws/codebuild/amazonlinux2-aarch64-standard:3.0">Amazon Linux 2 ARM</option>
+                            </optgroup>
+                            <optgroup label="Windows">
+                                <option value="aws/codebuild/windows-base:2019-3.0">Windows Server 2019</option>
+                                <option value="aws/codebuild/windows-base:2022-1.0">Windows Server 2022</option>
+                            </optgroup>
+                            <optgroup label="Custom">
+                                <option value="CUSTOM">Image personnalisée (ECR)</option>
+                            </optgroup>
+                        </select>
+                    </div>
+                </div>
+
+                <div id="customImageField" style="display: none;">
+                    <div class="field-group">
+                        <label class="field-label" for="custom_image">
+                            URI de l'image personnalisée
+                        </label>
+                        <input
+                            type="text"
+                            id="custom_image"
+                            name="custom_image"
+                            placeholder="ex: 123456789012.dkr.ecr.eu-west-3.amazonaws.com/my-build-image:latest"
+                        >
+                    </div>
+                </div>
+
+                <div class="field-group">
+                    <label class="field-label" for="compute_type">
+                        Type de compute <span class="req">*</span>
+                    </label>
+                    <p class="field-hint">Plus le compute est puissant, plus le build est rapide (mais coûteux)</p>
+                    <div class="select-wrapper">
+                        <select id="compute_type" name="compute_type" required>
+                            <option value="BUILD_GENERAL1_SMALL">💚 Small - 3GB RAM, 2 vCPU ($0.005/min)</option>
+                            <option value="BUILD_GENERAL1_MEDIUM" selected>💛 Medium - 7GB RAM, 4 vCPU ($0.01/min)</option>
+                            <option value="BUILD_GENERAL1_LARGE">🧡 Large - 15GB RAM, 8 vCPU ($0.02/min)</option>
+                            <option value="BUILD_GENERAL1_2XLARGE">❤️ 2XLarge - 145GB RAM, 72 vCPU ($0.20/min)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="toggle-row">
+                    <div class="toggle-info">
+                        <strong>Mode privilégié</strong>
+                        <span>Nécessaire pour construire des images Docker (docker build, docker-compose)</span>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="privileged_mode" name="privileged_mode">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+
+                <!-- SECTION 4: BUILDSPEC -->
+                <div class="section-divider">
+                    <span class="section-divider-label">04 — Buildspec & Commands</span>
+                    <div class="section-divider-line"></div>
+                </div>
+
+                <div class="field-group">
+                    <label class="field-label" for="buildspec_type">
+                        Source du buildspec
+                    </label>
+                    <div class="select-wrapper">
+                        <select id="buildspec_type" name="buildspec_type">
+                            <option value="file">📄 Fichier buildspec.yml dans le repo</option>
+                            <option value="inline">📝 Buildspec inline (ci-dessous)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div id="buildspecFileField">
+                    <div class="field-group">
+                        <label class="field-label" for="buildspec_path">
+                            Chemin du buildspec
+                        </label>
+                        <input
+                            type="text"
+                            id="buildspec_path"
+                            name="buildspec_path"
+                            placeholder="buildspec.yml"
+                            value="buildspec.yml"
+                        >
+                    </div>
+                </div>
+
+                <div id="buildspecInlineField" style="display: none;">
+                    <div class="field-group">
+                        <label class="field-label" for="buildspec">
+                            Buildspec YAML
+                        </label>
+                        <p class="field-hint">Collez votre buildspec au format YAML</p>
+                        <textarea
+                            id="buildspec"
+                            name="buildspec"
+                            placeholder="version: 0.2&#10;phases:&#10;  pre_build:&#10;    commands:&#10;      - echo Logging in to Amazon ECR...&#10;      - aws ecr get-login-password | docker login --username AWS --password-stdin $ECR_URI&#10;  build:&#10;    commands:&#10;      - echo Build started on `date`&#10;      - docker build -t $IMAGE_REPO_NAME:$IMAGE_TAG .&#10;      - docker tag $IMAGE_REPO_NAME:$IMAGE_TAG $ECR_URI/$IMAGE_REPO_NAME:$IMAGE_TAG&#10;  post_build:&#10;    commands:&#10;      - docker push $ECR_URI/$IMAGE_REPO_NAME:$IMAGE_TAG&#10;      - printf '[{&quot;name&quot;:&quot;%s&quot;,&quot;imageUri&quot;:&quot;%s&quot;}]' $CONTAINER_NAME $ECR_URI/$IMAGE_REPO_NAME:$IMAGE_TAG > imagedefinitions.json&#10;artifacts:&#10;  files:&#10;    - imagedefinitions.json"
+                            rows="12"
+                        ></textarea>
+                    </div>
+                </div>
+
+                <!-- SECTION 5: VARIABLES D'ENVIRONNEMENT -->
+                <div class="section-divider">
+                    <span class="section-divider-label">05 — Variables d'Environnement</span>
+                    <div class="section-divider-line"></div>
+                </div>
+
+                <div class="toggle-row">
+                    <div class="toggle-info">
+                        <strong>Ajouter des variables d'environnement</strong>
+                        <span>Variables accessibles pendant le build (AWS_REGION, NODE_ENV...)</span>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="enable_env_vars" name="enable_env_vars">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+
+                <div id="envVarsContainer" class="env-vars-container">
+                    <div id="envVarsList">
+                        <div class="env-var-row">
+                            <input type="text" placeholder="Nom (ex: NODE_ENV)" class="env-var-key">
+                            <input type="text" placeholder="Valeur (ex: production)" class="env-var-value">
+                            <button type="button" class="btn-icon" onclick="removeEnvVar(this)">×</button>
+                        </div>
+                    </div>
+                    <button type="button" class="btn-add" onclick="addEnvVar()">+ Ajouter une variable</button>
+                </div>
+
+                <!-- SECTION 6: ARTIFACTS & CACHE -->
+                <div class="section-divider">
+                    <span class="section-divider-label">06 — Artifacts & Cache</span>
+                    <div class="section-divider-line"></div>
+                </div>
+
+                <div class="field-group">
+                    <label class="field-label" for="artifacts_type">
+                        Type d'artifacts
+                    </label>
+                    <div class="select-wrapper">
+                        <select id="artifacts_type" name="artifacts_type">
+                            <option value="NO_ARTIFACTS">❌ Pas d'artifacts</option>
+                            <option value="S3" selected>🪣 Amazon S3</option>
+                            <option value="CODEPIPELINE">🔄 CodePipeline (intégré)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div id="artifactsS3Field" style="display: block;">
+                    <div class="field-group">
+                        <label class="field-label" for="artifacts_bucket">
+                            Bucket S3 pour les artifacts
+                        </label>
+                        <input
+                            type="text"
+                            id="artifacts_bucket"
+                            name="artifacts_bucket"
+                            placeholder="ex: sonatel-build-artifacts"
+                        >
+                    </div>
+
+                    <div class="field-group">
+                        <label class="field-label" for="artifacts_path">
+                            Chemin dans le bucket (optionnel)
+                        </label>
+                        <input
+                            type="text"
+                            id="artifacts_path"
+                            name="artifacts_path"
+                            placeholder="ex: backend-api/builds"
+                        >
+                    </div>
+                </div>
+
+                <div class="toggle-row">
+                    <div class="toggle-info">
+                        <strong>Activer le cache S3</strong>
+                        <span>Accélère les builds en cachant les dépendances (node_modules, .gradle, .m2...)</span>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="enable_cache" name="enable_cache">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+
+                <div id="cacheField" style="display: none;">
+                    <div class="field-group">
+                        <label class="field-label" for="cache_bucket">
+                            Bucket S3 pour le cache
+                        </label>
+                        <input
+                            type="text"
+                            id="cache_bucket"
+                            name="cache_bucket"
+                            placeholder="ex: sonatel-build-cache"
+                        >
+                    </div>
+
+                    <div class="field-group">
+                        <label class="field-label" for="cache_paths">
+                            Chemins à mettre en cache (un par ligne)
+                        </label>
+                        <textarea
+                            id="cache_paths"
+                            name="cache_paths"
+                            placeholder="/root/.gradle&#10;/root/.m2&#10;node_modules&#10;vendor"
+                            rows="4"
+                        ></textarea>
+                    </div>
+                </div>
+
+                <!-- SECTION 7: OPTIONS AVANCÉES -->
+                <div class="section-divider">
+                    <span class="section-divider-label">07 — Options Avancées</span>
+                    <div class="section-divider-line"></div>
+                </div>
+
+                <div class="field-group-inline">
+                    <div class="field-group">
+                        <label class="field-label" for="timeout">
+                            Timeout (minutes)
+                        </label>
+                        <input
+                            type="number"
+                            id="timeout"
+                            name="timeout"
+                            min="5"
+                            max="480"
+                            value="60"
+                        >
+                    </div>
+
+                    <div class="field-group">
+                        <label class="field-label" for="queued_timeout">
+                            Queued timeout (minutes)
+                        </label>
+                        <input
+                            type="number"
+                            id="queued_timeout"
+                            name="queued_timeout"
+                            min="5"
+                            max="480"
+                            value="480"
+                        >
+                    </div>
+                </div>
+
+                <div class="toggle-row">
+                    <div class="toggle-info">
+                        <strong>Logs CloudWatch</strong>
+                        <span>Envoyer les logs vers CloudWatch Logs (recommandé)</span>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="cloudwatch_logs" name="cloudwatch_logs" checked>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+
+                <div class="toggle-row">
+                    <div class="toggle-info">
+                        <strong>Logs S3</strong>
+                        <span>Sauvegarder les logs dans S3 pour archivage long terme</span>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="s3_logs" name="s3_logs">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+
+                <!-- SUBMIT -->
+                <div style="margin-top: 40px">
+                    <button type="submit" class="btn-primary" id="submitBtn">
+                        <span class="spinner" id="spinner"></span>
+                        <span id="btnText">🏗️ Créer le projet CodeBuild</span>
+                    </button>
+                </div>
+
+                <p style="text-align:center; margin-top:12px; font-size:11px; color: var(--gray-300); font-family:'Space Mono',monospace;">
+                    ⏱️ Le déploiement via GitHub Actions prend environ 2–3 minutes
+                </p>
+
+            </form>
+        </div>
+    </div>
+
+    <!-- SIDE PANEL -->
+    <div class="side-panel">
+        <div class="info-panel">
+            <div class="info-panel-header">🏗️ Ressources Terraform créées</div>
+            <div class="info-item">
+                <div class="info-item-icon">📦</div>
+                <div>
+                    <div class="info-item-title">aws_codebuild_project</div>
+                    <div class="info-item-desc">Projet principal avec toutes les configurations</div>
+                </div>
+            </div>
+            <div class="info-item">
+                <div class="info-item-icon">🔐</div>
+                <div>
+                    <div class="info-item-title">aws_iam_role</div>
+                    <div class="info-item-desc">Rôle d'exécution avec permissions nécessaires</div>
+                </div>
+            </div>
+            <div class="info-item">
+                <div class="info-item-icon">📊</div>
+                <div>
+                    <div class="info-item-title">aws_cloudwatch_log_group</div>
+                    <div class="info-item-desc">Groupe de logs pour le suivi des builds</div>
+                </div>
+            </div>
+            <div class="info-item">
+                <div class="info-item-icon">🪣</div>
+                <div>
+                    <div class="info-item-title">aws_s3_bucket (optionnel)</div>
+                    <div class="info-item-desc">Buckets pour artifacts et cache</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="info-panel">
+            <div class="info-panel-header">💡 Images Recommandées</div>
+            <div class="info-item">
+                <div class="info-item-icon">🐳</div>
+                <div>
+                    <div class="info-item-title">Docker + Node.js</div>
+                    <div class="info-item-desc">
+                        <strong>standard:7.0</strong><br>
+                        Ubuntu 22.04 · Node 18/20 · Docker 24 · Python 3.11
+                    </div>
+                </div>
+            </div>
+            <div class="info-item">
+                <div class="info-item-icon">☕</div>
+                <div>
+                    <div class="info-item-title">Java / Gradle / Maven</div>
+                    <div class="info-item-desc">
+                        <strong>standard:7.0</strong><br>
+                        Java 17/21 · Gradle 8 · Maven 3.9
+                    </div>
+                </div>
+            </div>
+            <div class="info-item">
+                <div class="info-item-icon">🐍</div>
+                <div>
+                    <div class="info-item-title">Python</div>
+                    <div class="info-item-desc">
+                        <strong>standard:7.0</strong><br>
+                        Python 3.11, 3.10, 3.9 · pip · virtualenv
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="info-panel">
+            <div class="info-panel-header">📊 Coûts Estimés</div>
+            <div style="padding: 16px 20px;">
+                <div class="code-block">
+<strong>Small</strong> (3GB, 2vCPU)
+→ $0.005/minute
+→ $0.30/heure
+→ Build de 10min = $0.05
+
+<strong>Medium</strong> (7GB, 4vCPU)
+→ $0.01/minute
+→ $0.60/heure
+→ Build de 10min = $0.10
+
+<strong>Free Tier</strong>
+→ 100 minutes/mois gratuits
+→ Compute type Small uniquement
+                </div>
+            </div>
+        </div>
+
+        <div class="info-panel">
+            <div class="info-panel-header">⚠️ Points d'attention</div>
+            <div class="info-item">
+                <div class="info-item-icon">🐳</div>
+                <div>
+                    <div class="info-item-title">Mode Privilégié</div>
+                    <div class="info-item-desc">Activez-le si vous construisez des images Docker (docker build). Sans cela, docker ne fonctionnera pas.</div>
+                </div>
+            </div>
+            <div class="info-item">
+                <div class="info-item-icon">💾</div>
+                <div>
+                    <div class="info-item-title">Cache S3</div>
+                    <div class="info-item-desc">Peut réduire le temps de build de 50-80% en cachant node_modules, .gradle, .m2, etc.</div>
+                </div>
+            </div>
+            <div class="info-item">
+                <div class="info-item-icon">⏱️</div>
+                <div>
+                    <div class="info-item-title">Timeout</div>
+                    <div class="info-item-desc">Ajustez selon la durée de vos builds. Maximum 8 heures (480 minutes).</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <p class="footer-note">
+        PROJET IAC SONATEL · CodeBuild Serverless · Terraform + GitHub Actions
+    </p>
+
+</main>
+
+<script>
+    const form = document.getElementById('buildForm');
+    const submitBtn = document.getElementById('submitBtn');
+    const spinner = document.getElementById('spinner');
+    const btnText = document.getElementById('btnText');
+    const alert = document.getElementById('alertBanner');
+    const alertText = document.getElementById('alertText');
+
+    function showAlert(msg) {
+        alertText.textContent = msg;
+        alert.style.display = 'flex';
+        alert.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    function hideAlert() {
+        alert.style.display = 'none';
+    }
+
+    // Validation du nom
+    function validateProjectName() {
+        const name = document.getElementById('project_name').value.trim();
+        const validation = document.getElementById('nameValidation');
+        
+        if (!name) {
+            validation.textContent = '';
+            validation.className = 'validation-msg';
+            return false;
+        }
+        
+        if (!/^[a-zA-Z0-9_-]+$/.test(name)) {
+            validation.textContent = '❌ Caractères invalides';
+            validation.className = 'validation-msg error';
+            return false;
+        }
+        
+        validation.textContent = '✅ Nom valide';
+        validation.className = 'validation-msg success';
+        return true;
+    }
+
+    document.getElementById('project_name').addEventListener('input', validateProjectName);
+
+    // Affichage conditionnel des champs
+    document.getElementById('source_type').addEventListener('change', function() {
+        const show = this.value && this.value !== 'NO_SOURCE' && this.value !== 'CODEPIPELINE';
+        document.getElementById('sourceFields').style.display = show ? 'block' : 'none';
+    });
+
+    document.getElementById('image').addEventListener('change', function() {
+        document.getElementById('customImageField').style.display = 
+            this.value === 'CUSTOM' ? 'block' : 'none';
+    });
+
+    document.getElementById('buildspec_type').addEventListener('change', function() {
+        if (this.value === 'file') {
+            document.getElementById('buildspecFileField').style.display = 'block';
+            document.getElementById('buildspecInlineField').style.display = 'none';
+        } else {
+            document.getElementById('buildspecFileField').style.display = 'none';
+            document.getElementById('buildspecInlineField').style.display = 'block';
+        }
+    });
+
+    document.getElementById('artifacts_type').addEventListener('change', function() {
+        document.getElementById('artifactsS3Field').style.display = 
+            this.value === 'S3' ? 'block' : 'none';
+    });
+
+    document.getElementById('enable_cache').addEventListener('change', function() {
+        document.getElementById('cacheField').style.display = this.checked ? 'block' : 'none';
+    });
+
+    document.getElementById('enable_env_vars').addEventListener('change', function() {
+        document.getElementById('envVarsContainer').classList.toggle('visible', this.checked);
+    });
+
+    // Variables d'environnement
+    function addEnvVar() {
+        const container = document.getElementById('envVarsList');
+        const row = document.createElement('div');
+        row.className = 'env-var-row';
+        row.innerHTML = `
+            <input type="text" placeholder="Nom" class="env-var-key">
+            <input type="text" placeholder="Valeur" class="env-var-value">
+            <button type="button" class="btn-icon" onclick="removeEnvVar(this)">×</button>
+        `;
+        container.appendChild(row);
+    }
+
+    function removeEnvVar(btn) {
+        btn.parentElement.remove();
+    }
+
+    // Soumission
+    form.addEventListener('submit', function(e) {
+        hideAlert();
+
+        const projectName = document.getElementById('project_name').value.trim();
+        const environment = document.getElementById('environment').value;
+        const sourceType = document.getElementById('source_type').value;
+
+        if (!projectName || !environment || !sourceType) {
+            e.preventDefault();
+            showAlert("⚠️ Veuillez remplir tous les champs obligatoires");
+            return false;
+        }
+
+        if (!validateProjectName()) {
+            e.preventDefault();
+            showAlert("⚠️ Le nom du projet est invalide");
+            document.getElementById('project_name').focus();
+            return false;
+        }
+
+        // Confirmation pour production
+        if (environment === 'prod') {
+            if (!confirm('⚠️ Vous allez créer un projet CodeBuild en PRODUCTION. Confirmez-vous ?')) {
+                e.preventDefault();
+                return false;
+            }
+        }
+
+        // Collecte des variables d'environnement
+        const envVars = [];
+        document.querySelectorAll('#envVarsList .env-var-row').forEach(row => {
+            const key = row.querySelector('.env-var-key').value.trim();
+            const value = row.querySelector('.env-var-value').value.trim();
+            if (key && value) {
+                envVars.push({ name: key, value: value });
+            }
+        });
+        
+        if (envVars.length > 0) {
+            const hiddenInput = document.createElement('input');
+            hiddenInput.type = 'hidden';
+            hiddenInput.name = 'environment_variables';
+            hiddenInput.value = JSON.stringify(envVars);
+            form.appendChild(hiddenInput);
+        }
+
+        spinner.style.display = 'block';
+        btnText.textContent = 'Création du projet en cours...';
+        submitBtn.disabled = true;
+    });
+
+    // Toggle rows
+    document.querySelectorAll('.toggle-row').forEach(row => {
+        row.addEventListener('click', function(e) {
+            if (e.target.type === 'checkbox') return;
+            const cb = this.querySelector('input[type="checkbox"]');
+            if (cb) {
+                cb.checked = !cb.checked;
+                cb.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+        });
+    });
+
+    setTimeout(() => document.getElementById('project_name').focus(), 400);
+</script>
+</body>
+</html>

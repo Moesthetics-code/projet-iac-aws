@@ -1,0 +1,131 @@
+{% extends 'base.html' %}
+
+{% block title %}SONATEL IAC — AWS Management Console{% endblock %}
+
+{% block topbar_label %}{{ total }} Services AWS disponibles{% endblock %}
+
+{% block extra_styles %}
+    {# Lien vers un fichier CSS externe dans static/ #}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/index.css') }}">
+{% endblock %}
+
+{% block content %}
+
+    <!-- ── Hero ───────────────────────────────────────────────────── -->
+    <section class="hero">
+        <div class="hero-eyebrow">Infrastructure as Code · AWS</div>
+        <h1 class="hero-title">AWS Management<br>Console IAC</h1>
+        <p class="hero-subtitle">
+            Déployez et gérez votre infrastructure AWS via Terraform et GitHub Actions.
+            Interface unifiée pour {{ total }} services avec configuration guidée et validation en temps réel.
+        </p>
+        <div class="hero-stats">
+            <div class="stat">
+                <div class="stat-value" id="visibleCount">{{ total }}</div>
+                <div class="stat-label">Services AWS</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value">100%</div>
+                <div class="stat-label">Infrastructure as Code</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value">∞</div>
+                <div class="stat-label">Automatisation</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ── Status Banner ──────────────────────────────────────────── -->
+    <div class="status-banner">
+        <span class="status-banner-text">
+            ✅ Tous les services sont opérationnels ·
+            {{ total }} services disponibles · Dernière mise à jour : février 2026
+        </span>
+    </div>
+
+    <!-- ── Barre de recherche ─────────────────────────────────────── -->
+    <div class="search-wrapper">
+        <span class="search-icon">
+            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+            </svg>
+        </span>
+        <input
+            id="searchInput"
+            class="search-input"
+            type="text"
+            placeholder="Rechercher un service (EC2, Lambda, S3…)"
+            autocomplete="off"
+            spellcheck="false"
+        />
+        <button id="searchClear" class="search-clear" aria-label="Effacer">✕ Effacer</button>
+    </div>
+
+    <!-- ── Filtres par catégorie ──────────────────────────────────── -->
+    <div class="filter-pills">
+        <button class="pill active" data-filter="all">Tous</button>
+        <button class="pill" data-filter="COMPUTE">Compute</button>
+        <button class="pill" data-filter="SERVERLESS">Serverless</button>
+        <button class="pill" data-filter="STORAGE">Storage</button>
+        <button class="pill" data-filter="DATABASE">Database</button>
+        <button class="pill" data-filter="SECURITY">Security</button>
+        <button class="pill" data-filter="NETWORKING">Networking</button>
+        <button class="pill" data-filter="MONITORING">Monitoring</button>
+        <button class="pill" data-filter="DEVOPS">DevOps</button>
+        <button class="pill" data-filter="MANAGEMENT">Management</button>
+        <button class="pill" data-filter="COST">Cost</button>
+    </div>
+
+    <!-- ── Section header ─────────────────────────────────────────── -->
+    <div class="section-header">
+        <h2 class="section-title">Services disponibles</h2>
+        <span class="section-count" id="sectionCount">{{ total }} services</span>
+    </div>
+
+    <!-- ── Grille dynamique ───────────────────────────────────────── -->
+    <div class="services-grid" id="servicesGrid">
+        {% for svc in services %}
+        <a href="/{{ svc.slug }}"
+           class="service-card"
+           data-name="{{ svc.name | lower }}"
+           data-type="{{ svc.type }}"
+           data-tags="{{ svc.tags | join(' ') | lower }}"
+           style="
+               --icon-color-1:   {{ svc.color_1 }};
+               --icon-color-2:   {{ svc.color_2 }};
+               --icon-color-rgb: {{ svc.color_rgb }};
+           ">
+            <div class="service-header">
+                <div class="service-icon">
+                    <div class="service-icon-inner">{{ svc.icon }}</div>
+                </div>
+                <div>
+                    <div class="service-name">{{ svc.name }}</div>
+                    <div class="service-type">{{ svc.type }}</div>
+                </div>
+                <span class="service-arrow">→</span>
+            </div>
+            <div class="service-desc">{{ svc.desc }}</div>
+            <div class="service-features">
+                {% for tag in svc.tags %}
+                <span class="feature-tag">{{ tag }}</span>
+                {% endfor %}
+            </div>
+        </a>
+        {% endfor %}
+    </div>
+
+    <!-- ── Empty state ────────────────────────────────────────────── -->
+    <div class="empty-state" id="emptyState">
+        <div class="empty-state-icon">🔍</div>
+        <div class="empty-state-title">Aucun service trouvé</div>
+        <p class="empty-state-desc">Essayez un autre mot-clé ou réinitialisez les filtres.</p>
+    </div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+    {# Lien vers un fichier JS externe dans static/ #}
+    <script src="{{ url_for('static', filename='js/index.js') }}"></script>
+{% endblock %}

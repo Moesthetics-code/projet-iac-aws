@@ -1,0 +1,1532 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SONATEL IAC — Déploiement CodeDeploy</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Sora:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        /* STYLE IDENTIQUE - Couleur CodeDeploy #8B5CF6 (Purple) */
+        :root {
+            --navy-900: #060d1f;
+            --navy-800: #0a1628;
+            --navy-700: #0f2044;
+            --service-color: #8b5cf6;
+            --service-rgb: 139, 92, 246;
+            --amber: #f59e0b;
+            --teal: #0ea5e9;
+            --green: #22c55e;
+            --red: #ef4444;
+            --white: #f8fafc;
+            --gray-300: #94a3b8;
+            --gray-200: #cbd5e1;
+            --card-bg: rgba(10, 22, 40, 0.92);
+            --border: rgba(14, 165, 233, 0.18);
+            --glow-service: 0 0 24px rgba(var(--service-rgb), 0.25);
+            --radius: 14px;
+            --radius-sm: 8px;
+        }
+
+        *, *::before, *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        html { scroll-behavior: smooth; }
+
+        body {
+            font-family: 'Sora', sans-serif;
+            background-color: var(--navy-900);
+            color: var(--white);
+            min-height: 100vh;
+            overflow-x: hidden;
+            position: relative;
+            zoom: 0.8;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background-image:
+                linear-gradient(rgba(14,165,233,0.04) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(14,165,233,0.04) 1px, transparent 1px);
+            background-size: 48px 48px;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        body::after {
+            content: '';
+            position: fixed;
+            width: 600px;
+            height: 600px;
+            background: radial-gradient(circle, rgba(139,92,246,0.07) 0%, transparent 70%);
+            top: -150px;
+            right: -150px;
+            pointer-events: none;
+            z-index: 0;
+            animation: orbFloat 10s ease-in-out infinite alternate;
+        }
+
+        @keyframes orbFloat {
+            from { transform: translate(0,0) scale(1); }
+            to   { transform: translate(-30px, 40px) scale(1.1); }
+        }
+
+        .orb-left {
+            position: fixed;
+            width: 500px;
+            height: 500px;
+            background: radial-gradient(circle, rgba(14,165,233,0.08) 0%, transparent 70%);
+            bottom: -100px;
+            left: -100px;
+            pointer-events: none;
+            z-index: 0;
+            animation: orbFloat 13s ease-in-out infinite alternate-reverse;
+        }
+
+        /* Styles identiques S3/CodePipeline/CodeBuild - copie complète */
+        .topbar {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: rgba(6,13,31,0.85);
+            backdrop-filter: blur(16px);
+            border-bottom: 1px solid var(--border);
+            padding: 0 32px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .topbar-brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-family: 'Space Mono', monospace;
+            font-size: 13px;
+            letter-spacing: 0.05em;
+        }
+
+        .topbar-logo {
+            width: 32px;
+            height: 32px;
+            background: linear-gradient(135deg, var(--teal), var(--amber));
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+        }
+
+        .topbar-brand span { color: var(--gray-300); }
+        .topbar-brand strong { color: var(--white); }
+
+        .topbar-right {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .btn-back {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            background: rgba(139,92,246,0.1);
+            border: 1px solid rgba(139,92,246,0.3);
+            border-radius: 8px;
+            color: var(--service-color);
+            text-decoration: none;
+            font-size: 12px;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+        .btn-back:hover { background: rgba(139,92,246,0.15); }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--green);
+            box-shadow: 0 0 8px var(--green);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+
+        .topbar-service {
+            font-family: 'Space Mono', monospace;
+            font-size: 11px;
+            color: var(--gray-300);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .chip {
+            font-family: 'Space Mono', monospace;
+            font-size: 11px;
+            padding: 5px 12px;
+            border-radius: 100px;
+            border: 1px solid;
+        }
+
+        .chip-service {
+            color: var(--service-color);
+            border-color: rgba(var(--service-rgb), 0.4);
+            background: rgba(var(--service-rgb), 0.07);
+        }
+
+        .chip-amber {
+            color: var(--amber);
+            border-color: rgba(245,158,11,0.4);
+            background: rgba(245,158,11,0.07);
+        }
+
+        .page-wrapper {
+            position: relative;
+            z-index: 1;
+            max-width: 1180px;
+            margin: 0 auto;
+            padding: 48px 24px 80px;
+            display: grid;
+            grid-template-columns: 1fr 380px;
+            gap: 32px;
+            align-items: start;
+        }
+
+        .page-header {
+            grid-column: 1 / -1;
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 24px;
+            margin-bottom: 8px;
+        }
+
+        .page-title-group { flex: 1; }
+
+        .page-eyebrow {
+            font-family: 'Space Mono', monospace;
+            font-size: 11px;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            color: var(--service-color);
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .page-eyebrow::before {
+            content: '';
+            width: 24px;
+            height: 2px;
+            background: var(--service-color);
+        }
+
+        .page-title {
+            font-size: 36px;
+            font-weight: 800;
+            line-height: 1.1;
+            letter-spacing: -0.02em;
+            background: linear-gradient(135deg, var(--white) 30%, var(--service-color));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .page-subtitle {
+            margin-top: 12px;
+            color: var(--gray-300);
+            font-size: 15px;
+            font-weight: 300;
+            line-height: 1.6;
+            max-width: 520px;
+        }
+
+        .region-chip {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 6px;
+            flex-shrink: 0;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            overflow: hidden;
+            backdrop-filter: blur(12px);
+        }
+
+        .card-header {
+            padding: 24px 32px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .card-header-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            background: linear-gradient(135deg, rgba(var(--service-rgb), 0.2), rgba(var(--service-rgb), 0.05));
+            border: 1px solid rgba(var(--service-rgb), 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            flex-shrink: 0;
+        }
+
+        .card-header-text h3 {
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--white);
+            margin-bottom: 2px;
+        }
+
+        .card-header-text p {
+            font-size: 12px;
+            color: var(--gray-300);
+        }
+
+        .card-body { padding: 32px; }
+
+        .steps-track {
+            display: flex;
+            align-items: center;
+            gap: 0;
+            margin-bottom: 32px;
+        }
+
+        .step-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            position: relative;
+        }
+
+        .step-num {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            border: 2px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Space Mono', monospace;
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--gray-300);
+            background: var(--navy-800);
+            z-index: 1;
+            transition: all 0.3s;
+        }
+
+        .step-item.active .step-num {
+            border-color: var(--service-color);
+            color: var(--service-color);
+            box-shadow: 0 0 12px rgba(var(--service-rgb), 0.4);
+        }
+
+        .step-item.done .step-num {
+            background: var(--service-color);
+            border-color: var(--service-color);
+            color: var(--navy-900);
+        }
+
+        .step-label {
+            font-size: 10px;
+            font-family: 'Space Mono', monospace;
+            letter-spacing: 0.04em;
+            color: var(--gray-300);
+            white-space: nowrap;
+        }
+
+        .step-item.active .step-label { color: var(--service-color); }
+
+        .step-connector {
+            flex: 1;
+            height: 2px;
+            background: var(--border);
+            margin: 0 8px;
+            margin-bottom: 22px;
+        }
+
+        .section-divider {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin: 8px 0 24px;
+        }
+
+        .section-divider-label {
+            font-family: 'Space Mono', monospace;
+            font-size: 10px;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: var(--gray-300);
+            white-space: nowrap;
+        }
+
+        .section-divider-line {
+            flex: 1;
+            height: 1px;
+            background: var(--border);
+        }
+
+        .field-group { margin-bottom: 24px; }
+
+        .field-label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--gray-200);
+        }
+
+        .field-label .req {
+            color: var(--amber);
+            font-size: 16px;
+            line-height: 1;
+        }
+
+        .field-hint {
+            font-size: 11px;
+            color: var(--gray-300);
+            margin-bottom: 8px;
+            font-weight: 300;
+            font-style: italic;
+        }
+
+        input[type="text"],
+        input[type="number"],
+        select,
+        textarea {
+            width: 100%;
+            background: rgba(15, 32, 68, 0.6);
+            border: 1.5px solid rgba(14,165,233,0.2);
+            color: var(--white);
+            border-radius: var(--radius-sm);
+            padding: 13px 16px;
+            font-family: 'Sora', sans-serif;
+            font-size: 14px;
+            transition: border-color 0.25s, box-shadow 0.25s, background 0.25s;
+            appearance: none;
+            outline: none;
+        }
+
+        input::placeholder { color: rgba(148,163,184,0.5); }
+
+        input:focus,
+        select:focus,
+        textarea:focus {
+            border-color: var(--service-color);
+            background: rgba(15, 32, 68, 0.9);
+            box-shadow: var(--glow-service);
+        }
+
+        input.error-field { border-color: var(--red) !important; }
+
+        textarea {
+            min-height: 80px;
+            resize: vertical;
+            font-family: 'Space Mono', monospace;
+            font-size: 12px;
+            line-height: 1.6;
+        }
+
+        .select-wrapper {
+            position: relative;
+        }
+
+        .select-wrapper::after {
+            content: '▾';
+            position: absolute;
+            right: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--service-color);
+            pointer-events: none;
+            font-size: 14px;
+        }
+
+        .select-wrapper select {
+            padding-right: 36px;
+            cursor: pointer;
+        }
+
+        select option {
+            background: var(--navy-800);
+            color: var(--white);
+        }
+
+        .toggle-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 16px;
+            background: rgba(15,32,68,0.5);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            margin-bottom: 12px;
+            cursor: pointer;
+            transition: background 0.2s, border-color 0.2s;
+        }
+
+        .toggle-row:hover {
+            background: rgba(15,32,68,0.8);
+            border-color: rgba(14,165,233,0.3);
+        }
+
+        .toggle-row:has(input:checked) {
+            border-color: rgba(var(--service-rgb), 0.5);
+            background: rgba(var(--service-rgb), 0.06);
+        }
+
+        .toggle-info { flex: 1; }
+        .toggle-info strong {
+            font-size: 13px;
+            font-weight: 600;
+            display: block;
+            margin-bottom: 2px;
+        }
+        .toggle-info span {
+            font-size: 11px;
+            color: var(--gray-300);
+        }
+
+        .toggle-switch {
+            position: relative;
+            width: 44px;
+            height: 24px;
+            flex-shrink: 0;
+        }
+
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            inset: 0;
+            background: rgba(148,163,184,0.2);
+            border-radius: 100px;
+            transition: 0.3s;
+            cursor: pointer;
+        }
+
+        .toggle-slider::before {
+            content: '';
+            position: absolute;
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background: var(--gray-300);
+            border-radius: 50%;
+            transition: 0.3s;
+        }
+
+        .toggle-switch input:checked + .toggle-slider {
+            background: rgba(var(--service-rgb), 0.4);
+        }
+
+        .toggle-switch input:checked + .toggle-slider::before {
+            transform: translateX(20px);
+            background: var(--service-color);
+            box-shadow: 0 0 8px var(--service-color);
+        }
+
+        .btn-primary {
+            width: 100%;
+            padding: 17px;
+            background: linear-gradient(135deg, var(--service-color) 0%, rgba(var(--service-rgb), 0.8) 100%);
+            border: none;
+            border-radius: 10px;
+            color: var(--white);
+            font-family: 'Sora', sans-serif;
+            font-size: 15px;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .btn-primary::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -60%;
+            width: 200%;
+            height: 200%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
+            transform: rotate(30deg) translateX(-100%);
+            transition: transform 0.6s;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 16px 40px rgba(var(--service-rgb), 0.4);
+        }
+
+        .btn-primary:hover::before {
+            transform: rotate(30deg) translateX(200%);
+        }
+
+        .btn-primary:active { transform: translateY(0); }
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+        .spinner {
+            width: 18px;
+            height: 18px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-top-color: var(--white);
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+            display: none;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .side-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .info-panel {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            overflow: hidden;
+        }
+
+        .info-panel-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border);
+            font-size: 12px;
+            font-family: 'Space Mono', monospace;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--amber);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .info-item {
+            padding: 14px 20px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            gap: 12px;
+            align-items: flex-start;
+        }
+
+        .info-item:last-child { border-bottom: none; }
+
+        .info-item-icon {
+            font-size: 18px;
+            flex-shrink: 0;
+            margin-top: 1px;
+        }
+
+        .info-item-title {
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--white);
+            margin-bottom: 3px;
+        }
+
+        .info-item-desc {
+            font-size: 11px;
+            color: var(--gray-300);
+            line-height: 1.5;
+        }
+
+        .code-block {
+            background: rgba(6,13,31,0.8);
+            padding: 12px 16px;
+            border-radius: 6px;
+            font-family: 'Space Mono', monospace;
+            font-size: 11px;
+            color: #a8d8f0;
+            line-height: 1.6;
+            overflow-x: auto;
+            margin-top: 8px;
+        }
+
+        .validation-msg {
+            font-size: 11px;
+            margin-top: 5px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            min-height: 16px;
+        }
+
+        .validation-msg.error { color: #f87171; }
+        .validation-msg.success { color: var(--green); }
+
+        .alert-banner {
+            display: none;
+            padding: 12px 16px;
+            border-radius: var(--radius-sm);
+            font-size: 13px;
+            margin-bottom: 24px;
+            align-items: flex-start;
+            gap: 10px;
+        }
+
+        .alert-banner.error {
+            background: rgba(239,68,68,0.1);
+            border: 1px solid rgba(239,68,68,0.3);
+            color: #fca5a5;
+            display: flex;
+        }
+
+        .footer-note {
+            grid-column: 1 / -1;
+            text-align: center;
+            font-size: 11px;
+            color: var(--gray-300);
+            margin-top: 8px;
+            font-family: 'Space Mono', monospace;
+        }
+
+        .field-group-inline {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        @media (max-width: 900px) {
+            .page-wrapper {
+                grid-template-columns: 1fr;
+                padding: 32px 16px 60px;
+            }
+            .page-header {
+                flex-direction: column;
+                gap: 16px;
+            }
+            .field-group-inline {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .card {
+            animation: fadeInUp 0.5s ease-out both;
+        }
+
+        .side-panel > * {
+            animation: fadeInUp 0.5s ease-out both;
+        }
+
+        .side-panel > *:nth-child(2) {
+            animation-delay: 0.08s;
+        }
+
+        .side-panel > *:nth-child(3) {
+            animation-delay: 0.16s;
+        }
+    </style>
+</head>
+<body>
+<div class="orb-left"></div>
+
+<header class="topbar">
+    <div class="topbar-brand">
+        <div class="topbar-logo">☁️</div>
+        <span>PROJET IAC</span> <strong>SONATEL</strong>
+    </div>
+    <div class="topbar-right">
+        <a href="/" class="btn-back">← Tous les services</a>
+        <div class="topbar-service">
+            <div class="status-dot"></div>
+            Services opérationnels
+        </div>
+        <div class="chip chip-service">
+            🚀 CodeDeploy
+        </div>
+    </div>
+</header>
+
+<main class="page-wrapper">
+    <div class="page-header">
+        <div class="page-title-group">
+            <div class="page-eyebrow">Infrastructure as Code · AWS CodeDeploy</div>
+            <h1 class="page-title">Application<br>Deployment</h1>
+            <p class="page-subtitle">
+                Automatisez le déploiement de vos applications sur EC2, Lambda ou on-premise.
+                Configuration Blue/Green, rolling updates et rollback automatique.
+            </p>
+        </div>
+        <div class="region-chip">
+            <div class="chip chip-service">🟣 CodeDeploy</div>
+            <div class="chip chip-amber">⚡ Terraform 1.x</div>
+            <div class="chip chip-service">🔄 GitHub Actions</div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <div class="card-header-icon">🚀</div>
+            <div class="card-header-text">
+                <h3>Configuration CodeDeploy</h3>
+                <p>Application et Deployment Group</p>
+            </div>
+        </div>
+
+        <div class="card-body">
+            <div class="steps-track">
+                <div class="step-item active" data-step="1">
+                    <div class="step-num">1</div>
+                    <span class="step-label">Application</span>
+                </div>
+                <div class="step-connector"></div>
+                <div class="step-item" data-step="2">
+                    <div class="step-num">2</div>
+                    <span class="step-label">Cibles</span>
+                </div>
+                <div class="step-connector"></div>
+                <div class="step-item" data-step="3">
+                    <div class="step-num">3</div>
+                    <span class="step-label">Stratégie</span>
+                </div>
+                <div class="step-connector"></div>
+                <div class="step-item" data-step="4">
+                    <div class="step-num">4</div>
+                    <span class="step-label">Config</span>
+                </div>
+            </div>
+
+            <div id="alertBanner" class="alert-banner error">
+                <span>⚠️</span>
+                <span id="alertText"></span>
+            </div>
+
+            <form method="post" action="/trigger-codedeploy" id="deployForm">
+
+                <!-- SECTION 1: APPLICATION -->
+                <div class="section-divider">
+                    <span class="section-divider-label">01 — Application CodeDeploy</span>
+                    <div class="section-divider-line"></div>
+                </div>
+
+                <div class="field-group">
+                    <label class="field-label" for="application_name">
+                        Nom de l'application
+                        <span class="req">*</span>
+                    </label>
+                    <p class="field-hint">
+                        1-100 caractères · alphanumériques, tirets et underscores
+                    </p>
+                    <input
+                        type="text"
+                        id="application_name"
+                        name="application_name"
+                        placeholder="ex: sonatel-backend-app"
+                        required
+                        maxlength="100"
+                        pattern="[a-zA-Z0-9_-]+"
+                    >
+                    <div class="validation-msg" id="nameValidation"></div>
+                </div>
+
+                <div class="field-group-inline">
+                    <div class="field-group">
+                        <label class="field-label" for="compute_platform">
+                            Plateforme <span class="req">*</span>
+                        </label>
+                        <div class="select-wrapper">
+                            <select id="compute_platform" name="compute_platform" required>
+                                <option value="">— Choisir —</option>
+                                <option value="Server">🖥️ EC2/On-Premise</option>
+                                <option value="Lambda">⚡ AWS Lambda</option>
+                                <option value="ECS">🐳 Amazon ECS</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="field-group">
+                        <label class="field-label" for="region">
+                            Région AWS <span class="req">*</span>
+                        </label>
+                        <div class="select-wrapper">
+                            <select id="region" name="region" required>
+                                <option value="eu-west-3">🇫🇷 eu-west-3 (Paris)</option>
+                                <option value="eu-west-1">🇮🇪 eu-west-1 (Irlande)</option>
+                                <option value="us-east-1">🇺🇸 us-east-1 (Virginie)</option>
+                                <option value="us-west-2">🇺🇸 us-west-2 (Oregon)</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SECTION 2: DEPLOYMENT GROUP -->
+                <div class="section-divider">
+                    <span class="section-divider-label">02 — Deployment Group</span>
+                    <div class="section-divider-line"></div>
+                </div>
+
+                <div class="field-group">
+                    <label class="field-label" for="deployment_group_name">
+                        Nom du deployment group
+                        <span class="req">*</span>
+                    </label>
+                    <p class="field-hint">Groupe de serveurs/instances cibles</p>
+                    <input
+                        type="text"
+                        id="deployment_group_name"
+                        name="deployment_group_name"
+                        placeholder="ex: production-servers"
+                        required
+                        pattern="[a-zA-Z0-9_-]+"
+                    >
+                </div>
+
+                <div class="field-group">
+                    <label class="field-label" for="environment">
+                        Environnement <span class="req">*</span>
+                    </label>
+                    <div class="select-wrapper">
+                        <select id="environment" name="environment" required>
+                            <option value="">— Choisir —</option>
+                            <option value="dev">🔧 Développement</option>
+                            <option value="staging">🧪 Staging</option>
+                            <option value="prod">🚀 Production</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- SECTION 3: CIBLES (EC2) -->
+                <div id="ec2TargetsSection" style="display: none;">
+                    <div class="section-divider">
+                        <span class="section-divider-label">03 — Cibles EC2</span>
+                        <div class="section-divider-line"></div>
+                    </div>
+
+                    <div class="field-group">
+                        <label class="field-label" for="ec2_tag_filters">
+                            Tags EC2 (clé:valeur, un par ligne)
+                        </label>
+                        <p class="field-hint">Les instances avec ces tags seront ciblées</p>
+                        <textarea
+                            id="ec2_tag_filters"
+                            name="ec2_tag_filters"
+                            placeholder="Environment:production&#10;Application:backend&#10;Team:devops"
+                            rows="4"
+                        ></textarea>
+                    </div>
+
+                    <div class="field-group">
+                        <label class="field-label" for="autoscaling_groups">
+                            Auto Scaling Groups (un par ligne)
+                        </label>
+                        <p class="field-hint">Noms des ASG à cibler (optionnel)</p>
+                        <textarea
+                            id="autoscaling_groups"
+                            name="autoscaling_groups"
+                            placeholder="backend-asg-prod&#10;api-asg-prod"
+                            rows="3"
+                        ></textarea>
+                    </div>
+                </div>
+
+                <!-- SECTION 4: CIBLES (Lambda) -->
+                <div id="lambdaTargetsSection" style="display: none;">
+                    <div class="section-divider">
+                        <span class="section-divider-label">03 — Cibles Lambda</span>
+                        <div class="section-divider-line"></div>
+                    </div>
+
+                    <div class="field-group">
+                        <label class="field-label" for="lambda_function_name">
+                            Nom de la fonction Lambda <span class="req">*</span>
+                        </label>
+                        <input
+                            type="text"
+                            id="lambda_function_name"
+                            name="lambda_function_name"
+                            placeholder="ex: backend-api-handler"
+                        >
+                    </div>
+
+                    <div class="field-group">
+                        <label class="field-label" for="lambda_alias">
+                            Alias Lambda
+                        </label>
+                        <p class="field-hint">Alias pour le déploiement (ex: live, production)</p>
+                        <input
+                            type="text"
+                            id="lambda_alias"
+                            name="lambda_alias"
+                            placeholder="ex: live"
+                            value="live"
+                        >
+                    </div>
+                </div>
+
+                <!-- SECTION 5: CIBLES (ECS) -->
+                <div id="ecsTargetsSection" style="display: none;">
+                    <div class="section-divider">
+                        <span class="section-divider-label">03 — Cibles ECS</span>
+                        <div class="section-divider-line"></div>
+                    </div>
+
+                    <div class="field-group">
+                        <label class="field-label" for="ecs_cluster_name">
+                            Cluster ECS <span class="req">*</span>
+                        </label>
+                        <input
+                            type="text"
+                            id="ecs_cluster_name"
+                            name="ecs_cluster_name"
+                            placeholder="ex: production-cluster"
+                        >
+                    </div>
+
+                    <div class="field-group">
+                        <label class="field-label" for="ecs_service_name">
+                            Service ECS <span class="req">*</span>
+                        </label>
+                        <input
+                            type="text"
+                            id="ecs_service_name"
+                            name="ecs_service_name"
+                            placeholder="ex: backend-service"
+                        >
+                    </div>
+                </div>
+
+                <!-- SECTION 6: STRATÉGIE DE DÉPLOIEMENT -->
+                <div class="section-divider">
+                    <span class="section-divider-label">04 — Stratégie de Déploiement</span>
+                    <div class="section-divider-line"></div>
+                </div>
+
+                <div class="field-group">
+                    <label class="field-label" for="deployment_config">
+                        Configuration de déploiement <span class="req">*</span>
+                    </label>
+                    <p class="field-hint">Stratégie de mise à jour des instances</p>
+                    <div class="select-wrapper">
+                        <select id="deployment_config" name="deployment_config" required>
+                            <optgroup label="EC2/On-Premise">
+                                <option value="CodeDeployDefault.AllAtOnce">🚀 All At Once (rapide, downtime)</option>
+                                <option value="CodeDeployDefault.HalfAtATime">⚖️ Half At A Time (équilibré)</option>
+                                <option value="CodeDeployDefault.OneAtATime" selected>🐌 One At A Time (sûr, lent)</option>
+                            </optgroup>
+                            <optgroup label="Lambda">
+                                <option value="CodeDeployDefault.LambdaCanary10Percent5Minutes">🐤 Canary 10% - 5min</option>
+                                <option value="CodeDeployDefault.LambdaCanary10Percent10Minutes">🐤 Canary 10% - 10min</option>
+                                <option value="CodeDeployDefault.LambdaLinear10PercentEvery1Minute">📈 Linear 10%/min</option>
+                                <option value="CodeDeployDefault.LambdaLinear10PercentEvery3Minutes">📈 Linear 10%/3min</option>
+                                <option value="CodeDeployDefault.LambdaAllAtOnce">🚀 All At Once</option>
+                            </optgroup>
+                            <optgroup label="ECS">
+                                <option value="CodeDeployDefault.ECSCanary10Percent5Minutes">🐤 Canary 10% - 5min</option>
+                                <option value="CodeDeployDefault.ECSLinear10PercentEvery1Minutes">📈 Linear 10%/min</option>
+                                <option value="CodeDeployDefault.ECSAllAtOnce">🚀 All At Once</option>
+                            </optgroup>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="toggle-row" id="blueGreenToggle" style="display: none;">
+                    <div class="toggle-info">
+                        <strong>Déploiement Blue/Green</strong>
+                        <span>Déployer sur de nouvelles instances puis basculer le trafic (zéro downtime)</span>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="blue_green_deployment" name="blue_green_deployment">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+
+                <div id="blueGreenConfig" style="display: none;">
+                    <div class="field-group">
+                        <label class="field-label" for="green_fleet_option">
+                            Option de la fleet Green
+                        </label>
+                        <div class="select-wrapper">
+                            <select id="green_fleet_option" name="green_fleet_option">
+                                <option value="COPY_AUTO_SCALING_GROUP">Copier l'ASG existant</option>
+                                <option value="DISCOVER_EXISTING">Utiliser un ASG existant</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="field-group-inline">
+                        <div class="field-group">
+                            <label class="field-label" for="terminate_blue_instances">
+                                Action après basculement
+                            </label>
+                            <div class="select-wrapper">
+                                <select id="terminate_blue_instances" name="terminate_blue_instances">
+                                    <option value="TERMINATE">Terminer les instances Blue</option>
+                                    <option value="KEEP_ALIVE">Garder les instances Blue</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="field-group">
+                            <label class="field-label" for="blue_green_timeout">
+                                Timeout (minutes)
+                            </label>
+                            <input
+                                type="number"
+                                id="blue_green_timeout"
+                                name="blue_green_timeout"
+                                min="0"
+                                max="2880"
+                                value="60"
+                            >
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SECTION 7: ROLLBACK -->
+                <div class="section-divider">
+                    <span class="section-divider-label">05 — Rollback Automatique</span>
+                    <div class="section-divider-line"></div>
+                </div>
+
+                <div class="toggle-row">
+                    <div class="toggle-info">
+                        <strong>Activer le rollback automatique</strong>
+                        <span>Revenir à la version précédente en cas d'échec</span>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="auto_rollback" name="auto_rollback" checked>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+
+                <div id="rollbackConfig" style="display: block;">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px;">
+                        <label style="display: flex; align-items: center; gap: 8px; padding: 10px; background: rgba(15,32,68,0.5); border-radius: 8px; cursor: pointer;">
+                            <input type="checkbox" name="rollback_on_failure" checked>
+                            <span style="font-size: 13px;">Rollback si échec</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 8px; padding: 10px; background: rgba(15,32,68,0.5); border-radius: 8px; cursor: pointer;">
+                            <input type="checkbox" name="rollback_on_alarm">
+                            <span style="font-size: 13px;">Rollback si alarme CloudWatch</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- SECTION 8: LOAD BALANCER -->
+                <div class="section-divider">
+                    <span class="section-divider-label">06 — Load Balancer (optionnel)</span>
+                    <div class="section-divider-line"></div>
+                </div>
+
+                <div class="toggle-row">
+                    <div class="toggle-info">
+                        <strong>Utiliser un Load Balancer</strong>
+                        <span>ALB/ELB/NLB pour gérer le trafic pendant le déploiement</span>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="use_load_balancer" name="use_load_balancer">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+
+                <div id="loadBalancerConfig" style="display: none;">
+                    <div class="field-group">
+                        <label class="field-label" for="load_balancer_type">
+                            Type de Load Balancer
+                        </label>
+                        <div class="select-wrapper">
+                            <select id="load_balancer_type" name="load_balancer_type">
+                                <option value="target_group">🎯 Target Group (ALB/NLB)</option>
+                                <option value="classic">⚖️ Classic Load Balancer</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div id="targetGroupField">
+                        <div class="field-group">
+                            <label class="field-label" for="target_group_name">
+                                Nom du Target Group
+                            </label>
+                            <input
+                                type="text"
+                                id="target_group_name"
+                                name="target_group_name"
+                                placeholder="ex: backend-tg-prod"
+                            >
+                        </div>
+                    </div>
+
+                    <div id="classicLBField" style="display: none;">
+                        <div class="field-group">
+                            <label class="field-label" for="classic_lb_name">
+                                Nom du Classic Load Balancer
+                            </label>
+                            <input
+                                type="text"
+                                id="classic_lb_name"
+                                name="classic_lb_name"
+                                placeholder="ex: backend-elb"
+                            >
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SUBMIT -->
+                <div style="margin-top: 40px">
+                    <button type="submit" class="btn-primary" id="submitBtn">
+                        <span class="spinner" id="spinner"></span>
+                        <span id="btnText">🚀 Créer l'application CodeDeploy</span>
+                    </button>
+                </div>
+
+                <p style="text-align:center; margin-top:12px; font-size:11px; color: var(--gray-300); font-family:'Space Mono',monospace;">
+                    ⏱️ Le déploiement via GitHub Actions prend environ 2–3 minutes
+                </p>
+
+            </form>
+        </div>
+    </div>
+
+    <!-- SIDE PANEL -->
+    <div class="side-panel">
+        <div class="info-panel">
+            <div class="info-panel-header">🏗️ Ressources Terraform créées</div>
+            <div class="info-item">
+                <div class="info-item-icon">📦</div>
+                <div>
+                    <div class="info-item-title">aws_codedeploy_application</div>
+                    <div class="info-item-desc">Application principale</div>
+                </div>
+            </div>
+            <div class="info-item">
+                <div class="info-item-icon">👥</div>
+                <div>
+                    <div class="info-item-title">aws_codedeploy_deployment_group</div>
+                    <div class="info-item-desc">Groupe de déploiement avec config</div>
+                </div>
+            </div>
+            <div class="info-item">
+                <div class="info-item-icon">🔐</div>
+                <div>
+                    <div class="info-item-title">aws_iam_role</div>
+                    <div class="info-item-desc">Rôle pour CodeDeploy</div>
+                </div>
+            </div>
+            <div class="info-item">
+                <div class="info-item-icon">📊</div>
+                <div>
+                    <div class="info-item-title">aws_sns_topic (optionnel)</div>
+                    <div class="info-item-desc">Notifications de déploiement</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="info-panel">
+            <div class="info-panel-header">💡 Stratégies Recommandées</div>
+            <div class="info-item">
+                <div class="info-item-icon">🚀</div>
+                <div>
+                    <div class="info-item-title">Production</div>
+                    <div class="info-item-desc">
+                        <strong>OneAtATime</strong> ou <strong>Blue/Green</strong><br>
+                        • Sécurisé, zéro downtime<br>
+                        • Rollback automatique activé<br>
+                        • Load Balancer requis
+                    </div>
+                </div>
+            </div>
+            <div class="info-item">
+                <div class="info-item-icon">🧪</div>
+                <div>
+                    <div class="info-item-title">Staging</div>
+                    <div class="info-item-desc">
+                        <strong>HalfAtATime</strong><br>
+                        • Équilibre vitesse/sécurité<br>
+                        • Rollback optionnel
+                    </div>
+                </div>
+            </div>
+            <div class="info-item">
+                <div class="info-item-icon">⚡</div>
+                <div>
+                    <div class="info-item-title">Développement</div>
+                    <div class="info-item-desc">
+                        <strong>AllAtOnce</strong><br>
+                        • Rapide, downtime acceptable<br>
+                        • Idéal pour les tests
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="info-panel">
+            <div class="info-panel-header">📊 Coûts</div>
+            <div style="padding: 16px 20px;">
+                <div class="code-block">
+<strong>CodeDeploy</strong>
+→ GRATUIT pour EC2/On-Premise
+→ GRATUIT pour Lambda
+→ $0.02 par mise à jour ECS
+
+<strong>Ressources associées</strong>
+→ EC2 instances facturées
+→ Load Balancer facturé
+→ Data transfer facturé
+                </div>
+            </div>
+        </div>
+
+        <div class="info-panel">
+            <div class="info-panel-header">⚠️ Prérequis</div>
+            <div class="info-item">
+                <div class="info-item-icon">📦</div>
+                <div>
+                    <div class="info-item-title">CodeDeploy Agent</div>
+                    <div class="info-item-desc">Doit être installé sur les instances EC2 cibles. Disponible pour Amazon Linux, Ubuntu, Windows.</div>
+                </div>
+            </div>
+            <div class="info-item">
+                <div class="info-item-icon">📄</div>
+                <div>
+                    <div class="info-item-title">appspec.yml</div>
+                    <div class="info-item-desc">Fichier de spécification dans votre code source définissant les hooks de déploiement.</div>
+                </div>
+            </div>
+            <div class="info-item">
+                <div class="info-item-icon">🔑</div>
+                <div>
+                    <div class="info-item-title">Permissions IAM</div>
+                    <div class="info-item-desc">Les instances EC2 doivent avoir le rôle permettant de communiquer avec S3 et CodeDeploy.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <p class="footer-note">
+        PROJET IAC SONATEL · CodeDeploy Automation · Terraform + GitHub Actions
+    </p>
+
+</main>
+
+<script>
+    const form = document.getElementById('deployForm');
+    const submitBtn = document.getElementById('submitBtn');
+    const spinner = document.getElementById('spinner');
+    const btnText = document.getElementById('btnText');
+    const alert = document.getElementById('alertBanner');
+    const alertText = document.getElementById('alertText');
+
+    function showAlert(msg) {
+        alertText.textContent = msg;
+        alert.style.display = 'flex';
+        alert.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    function hideAlert() {
+        alert.style.display = 'none';
+    }
+
+    // Validation du nom
+    function validateApplicationName() {
+        const name = document.getElementById('application_name').value.trim();
+        const validation = document.getElementById('nameValidation');
+        
+        if (!name) {
+            validation.textContent = '';
+            validation.className = 'validation-msg';
+            return false;
+        }
+        
+        if (!/^[a-zA-Z0-9_-]+$/.test(name)) {
+            validation.textContent = '❌ Caractères invalides';
+            validation.className = 'validation-msg error';
+            return false;
+        }
+        
+        validation.textContent = '✅ Nom valide';
+        validation.className = 'validation-msg success';
+        return true;
+    }
+
+    document.getElementById('application_name').addEventListener('input', validateApplicationName);
+
+    // Affichage conditionnel selon la plateforme
+    document.getElementById('compute_platform').addEventListener('change', function() {
+        const platform = this.value;
+        
+        document.getElementById('ec2TargetsSection').style.display = 'none';
+        document.getElementById('lambdaTargetsSection').style.display = 'none';
+        document.getElementById('ecsTargetsSection').style.display = 'none';
+        document.getElementById('blueGreenToggle').style.display = 'none';
+        
+        if (platform === 'Server') {
+            document.getElementById('ec2TargetsSection').style.display = 'block';
+            document.getElementById('blueGreenToggle').style.display = 'flex';
+        } else if (platform === 'Lambda') {
+            document.getElementById('lambdaTargetsSection').style.display = 'block';
+        } else if (platform === 'ECS') {
+            document.getElementById('ecsTargetsSection').style.display = 'block';
+        }
+
+        // Update deployment config options
+        updateDeploymentConfigOptions(platform);
+    });
+
+    function updateDeploymentConfigOptions(platform) {
+        const select = document.getElementById('deployment_config');
+        const options = select.querySelectorAll('optgroup');
+        
+        options.forEach(group => {
+            group.style.display = 'none';
+        });
+
+        if (platform === 'Server') {
+            options[0].style.display = 'block';
+            select.value = 'CodeDeployDefault.OneAtATime';
+        } else if (platform === 'Lambda') {
+            options[1].style.display = 'block';
+            select.value = 'CodeDeployDefault.LambdaCanary10Percent5Minutes';
+        } else if (platform === 'ECS') {
+            options[2].style.display = 'block';
+            select.value = 'CodeDeployDefault.ECSCanary10Percent5Minutes';
+        }
+    }
+
+    // Blue/Green config
+    document.getElementById('blue_green_deployment').addEventListener('change', function() {
+        document.getElementById('blueGreenConfig').style.display = this.checked ? 'block' : 'none';
+    });
+
+    // Rollback config
+    document.getElementById('auto_rollback').addEventListener('change', function() {
+        document.getElementById('rollbackConfig').style.display = this.checked ? 'block' : 'none';
+    });
+
+    // Load Balancer config
+    document.getElementById('use_load_balancer').addEventListener('change', function() {
+        document.getElementById('loadBalancerConfig').style.display = this.checked ? 'block' : 'none';
+    });
+
+    document.getElementById('load_balancer_type').addEventListener('change', function() {
+        if (this.value === 'target_group') {
+            document.getElementById('targetGroupField').style.display = 'block';
+            document.getElementById('classicLBField').style.display = 'none';
+        } else {
+            document.getElementById('targetGroupField').style.display = 'none';
+            document.getElementById('classicLBField').style.display = 'block';
+        }
+    });
+
+    // Soumission
+    form.addEventListener('submit', function(e) {
+        hideAlert();
+
+        const applicationName = document.getElementById('application_name').value.trim();
+        const computePlatform = document.getElementById('compute_platform').value;
+        const deploymentGroupName = document.getElementById('deployment_group_name').value.trim();
+        const environment = document.getElementById('environment').value;
+
+        if (!applicationName || !computePlatform || !deploymentGroupName || !environment) {
+            e.preventDefault();
+            showAlert("⚠️ Veuillez remplir tous les champs obligatoires");
+            return false;
+        }
+
+        if (!validateApplicationName()) {
+            e.preventDefault();
+            showAlert("⚠️ Le nom de l'application est invalide");
+            document.getElementById('application_name').focus();
+            return false;
+        }
+
+        // Validations spécifiques par plateforme
+        if (computePlatform === 'Lambda') {
+            const lambdaName = document.getElementById('lambda_function_name').value.trim();
+            if (!lambdaName) {
+                e.preventDefault();
+                showAlert("⚠️ Nom de fonction Lambda obligatoire");
+                return false;
+            }
+        } else if (computePlatform === 'ECS') {
+            const cluster = document.getElementById('ecs_cluster_name').value.trim();
+            const service = document.getElementById('ecs_service_name').value.trim();
+            if (!cluster || !service) {
+                e.preventDefault();
+                showAlert("⚠️ Cluster et service ECS obligatoires");
+                return false;
+            }
+        }
+
+        // Confirmation pour production
+        if (environment === 'prod') {
+            if (!confirm('⚠️ Vous allez créer une application CodeDeploy en PRODUCTION. Confirmez-vous ?')) {
+                e.preventDefault();
+                return false;
+            }
+        }
+
+        spinner.style.display = 'block';
+        btnText.textContent = 'Création en cours...';
+        submitBtn.disabled = true;
+    });
+
+    // Toggle rows
+    document.querySelectorAll('.toggle-row').forEach(row => {
+        row.addEventListener('click', function(e) {
+            if (e.target.type === 'checkbox') return;
+            const cb = this.querySelector('input[type="checkbox"]');
+            if (cb) {
+                cb.checked = !cb.checked;
+                cb.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+        });
+    });
+
+    setTimeout(() => document.getElementById('application_name').focus(), 400);
+</script>
+</body>
+</html>
